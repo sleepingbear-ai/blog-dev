@@ -1,4 +1,4 @@
 baseURL = 'https://sleepingbear-ai.github.io/'
 locale = 'en-us'
-title = 'My New Hugo Project'
+title = 'Welcome to the Blog of SleepingBear'
 theme = 'hugo-PaperMod'
