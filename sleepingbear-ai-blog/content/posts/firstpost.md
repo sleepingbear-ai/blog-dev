@@ -5,7 +5,7 @@ title = 'Firstpost'
 +++
 ## Introduction
 
-This is **bold** text, and this is *emphasized* text.
+This is a blog in English and Chinese, about AI, Thoughts, Reading
 
 Visit the [Hugo](https://gohugo.io) website!
 
