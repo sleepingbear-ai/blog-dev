@@ -37,7 +37,8 @@ Anthropic 给"研究（Research）"的定义是：**开放式（open-ended）的
 ```mermaid
 flowchart TD
     U(["用户提问"]) --> L["Lead Agent（指挥官）"]
-    L -. 制定计划 .-> M[("Memory 外部记忆")]
+    L -. 存入计划 .-> M[("Memory 外部记忆")]
+    M -. context 溢出后取回计划 .-> L
     L ==> S1["Subagent 1"]
     L ==> S2["Subagent 2"]
     L ==> S3["Subagent 3"]
