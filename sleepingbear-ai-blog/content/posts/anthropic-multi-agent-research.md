@@ -121,4 +121,6 @@ flowchart TD
 
 ---
 
+#ai #aiagents #multiagent #llm #rag #aicoding #claude #anthropic #deepresearch #promptengineering #人工智能 #ai学习 #ai编程 #多智能体 #大模型
+
 If you like this post, consider star [the repo](https://github.com/sleepingbear-ai/sleepingbear-ai.github.io).
