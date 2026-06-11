@@ -4,7 +4,7 @@ draft = false
 title = 'Anthropic Deep Research: 多智能体架构'
 +++
 
-最近 Anthropic 发布了一篇很好的工程博客，讲他们如何用 Multi-Agent（多智能体）架构来构建 Research 功能。这篇文章信息量很大，下面我把核心的设计和经验，整理成一节简单清晰的课，也很适合用来做面试准备。
+最近 Anthropic 发布了一篇很好的工程博客，讲他们如何用 Multi-Agent（多智能体）架构来构建 Research 功能。这篇文章信息量很大，下面我把核心的设计和经验，整理成一节简单清晰的课。
 
 > 原文：[How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system)
 
@@ -12,17 +12,17 @@ title = 'Anthropic Deep Research: 多智能体架构'
 
 这是最关键的问题，先想清楚 **why**。
 
-研究（Research）类任务有三个特点，单个 Agent 很难应付：
+Anthropic 给"研究（Research）"的定义是：**开放式（open-ended）的问题，很难提前预测需要哪些步骤**。你没法为探索复杂主题写死一条固定路径，因为这个过程本身是动态的、路径依赖（path-dependent）的——随着调查展开，需要灵活地转向或追查旁支线索。
 
-1. **不可预测**：研究是动态、走一步看一步的过程，无法提前写死流程。
-2. **信息量大**：单个 Agent 的 context window 有上限（比如 200k tokens），信息一多就装不下。
-3. **可以并行**：很多方向可以同时探索，而不是排队一个一个来。
+正因为这种开放性，Multi-Agent 架构很合适，原因有三：
 
-Multi-Agent 正好解决这些问题：让多个 Agent **同时**朝不同方向探索，每个 Agent 用自己独立的 context window，最后汇总。
+1. **并行探索**：多个 subagents 同时进行，各自用**独立的 context window**，探索问题的不同侧面。
+2. **关注点分离（separation of concerns）**：每个 subagent 有自己独立的工具、prompt 和探索轨迹，这降低了路径依赖，让每条调查更深入、更独立。
+3. **突破单 context 上限**：研究要处理的信息常常超出单个 Agent 的 context window，多个 Agent 分摊就能装下更多。
 
 效果有多好？Anthropic 给了一个数字：用 Claude Opus 4 当 lead、Claude Sonnet 4 当 subagents 的多智能体系统，在内部研究评测上比单个 Opus 4 **高出 90.2%**。
 
-一个经典例子：找出 S&P 500 里所有 IT 公司的董事会成员。单个 Agent 顺序搜索会失败；多个 subagents 并行分工就能搞定。
+一个经典例子：找出 S&P 500 里所有 IT 公司的董事会成员。这种需要广度优先、同时铺开多条搜索的任务，单个 Agent 顺序搜索会失败；多个 subagents 并行分工就能搞定。
 
 ## 二、架构：Orchestrator-Worker 模式
 
@@ -56,18 +56,25 @@ Multi-Agent 正好解决这些问题：让多个 Agent **同时**朝不同方向
 
 所以一条重要原则：**只有当任务价值足够高，能覆盖这个成本时，才值得用 Multi-Agent。**
 
-有个有趣的发现：在 BrowseComp 评测上，token 用量能解释 **80%** 的性能差异，工具调用和模型选择解释剩下的 15%。这说明，给任务"喂"足够多的 token 去探索，本身就是性能的主要来源。
+为什么多智能体能赢？Anthropic 给了一个很反直觉、却很核心的结论：
+
+> Multi-agent systems work mainly because they help spend enough tokens to solve the problem.
+> （多智能体之所以有效，主要是因为它们能花掉足够多的 token 来解决问题。）
+
+数据也支持这点：在 BrowseComp 评测上，**token 用量、工具调用次数、模型选择**这三个因素一起能解释 **95%** 的性能差异，其中**仅 token 用量一项就解释了 80%**。换句话说，给任务"喂"足够多的 token 去探索，本身就是性能的主要来源——而 Multi-Agent 正是一种把 token 用量扩展到单 Agent 装不下的程度的方式。
 
 ## 四、Prompt Engineering 的关键经验
 
-这部分对面试和实战都很有用：
+每个 Agent 都由一段 prompt 来驱动，所以正如原文所说：**"prompt engineering 是我们改进这些行为的主要杠杆（primary lever）。"** Anthropic 总结了 8 条原则：
 
-1. **教 Lead 怎么分工**：派任务时必须写清楚——目标、输出格式、用什么工具、边界在哪。只说"去研究半导体"会导致 subagents 重复劳动、各做各的。
-2. **让努力程度匹配难度**：在 prompt 里写明规则。简单事实 = 1 个 agent / 3-10 次调用；对比类 = 2-4 个 subagents；复杂研究 = 10+ 个 subagents 分工。
-3. **工具描述就是 UX**：Agent 选错工具几乎必败。要给明确的启发式规则：先看所有工具，再匹配用户意图，优先用专门工具而不是通用工具。
-4. **搜索由宽到窄**：先用简短、宽泛的 query，看看有什么，再逐步收窄——这模仿了人类专家的研究方式。
-5. **善用 Extended Thinking**：Lead 用可见的思考来规划；Subagents 在每次工具调用后用 interleaved thinking 评估质量、找差距、优化下一步。
-6. **让 Agent 自我改进**：Claude 4 能自己诊断失败、改进 prompt。一个"工具测试 Agent"重写工具描述后，让后续 Agent 的任务完成时间**减少了 40%**。
+1. **Think like your agents（像你的 Agent 一样思考）**：在 Console 里搭模拟、一步步观察 Agent 的行为，才能看清失败模式（派了太多 subagents、query 太啰嗦、用错工具）。
+2. **Teach the orchestrator how to delegate（教指挥官如何分工）**：派任务时必须写清楚——目标、输出格式、用什么工具、边界在哪。只说"去研究半导体"会导致 subagents 重复劳动、各做各的。
+3. **Scale effort to query complexity（让投入匹配问题复杂度）**：在 prompt 里写明规则。简单事实 = 1 个 agent / 3-10 次调用；对比类 = 2-4 个 subagents；复杂研究 = 10+ 个 subagents 分工。
+4. **Tool design and selection are critical（工具设计与选择至关重要）**：Agent 选错工具几乎必败。每个工具要有清晰、互不重叠的描述，并给明确的启发式规则：先看所有工具，再匹配用户意图，优先用专门工具而不是通用工具。
+5. **Let agents improve themselves（让 Agent 自我改进）**：Claude 4 能自己诊断失败、改进 prompt。一个"工具测试 Agent"重写工具描述后，让后续 Agent 的任务完成时间**减少了 40%**。
+6. **Start wide, then narrow down（先宽后窄）**：先用简短、宽泛的 query，看看有什么，再逐步收窄——这模仿了人类专家的研究方式。
+7. **Guide the thinking process（引导思考过程）**：用 extended thinking 当"可控的草稿纸"。Lead 用它来规划；Subagents 在每次工具调用后用 interleaved thinking 评估质量、找差距、优化下一步。
+8. **Parallel tool calling transforms speed（并行调用工具，大幅提速）**：Lead 并行起 subagents，subagent 又并行调工具，把复杂研究的时间最多压缩 **90%**。
 
 ## 五、评估（Evaluation）
 
@@ -98,8 +105,9 @@ Multi-Agent 正好解决这些问题：让多个 Agent **同时**朝不同方向
 
 - **Why**：研究任务不可预测、信息超出单 context、可并行 → Multi-Agent。
 - **架构**：Orchestrator-Worker，Lead 分工 + Subagents 并行 + CitationAgent 引用。
-- **数字**：比单 Agent 高 90.2%；时间省 90%；但 token 是 chat 的 15 倍；token 解释 80% 性能差异。
-- **Prompt**：分工要具体、努力匹配难度、工具描述即 UX、由宽到窄、让 Agent 自我改进。
+- **数字**：比单 Agent 高 90.2%；时间省 90%；但 token 是 chat 的 15 倍；token 一项就解释 80%（三因素共 95%）的性能差异。
+- **核心结论**：多智能体有效，主要是因为它能"花掉足够多的 token 来解决问题"。
+- **Prompt**：prompt engineering 是主要杠杆——分工要具体、投入匹配复杂度、工具设计即 UX、先宽后窄、让 Agent 自我改进、善用并行。
 - **边界**：共享上下文、强依赖、编程任务、低价值任务 → 不适合。
 
 一句话：**Multi-Agent 适合高价值、可并行、信息量超过单个 context 的任务；但要靠精细的 prompt engineering、好的工具设计、扎实的评估，以及能扛住长时间运行的生产系统。**
