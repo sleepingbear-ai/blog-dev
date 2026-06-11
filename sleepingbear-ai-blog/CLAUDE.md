@@ -6,6 +6,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A Hugo static site for the SleepingBear blog — a bilingual (English + Chinese) blog about AI, reading, and thoughts. Content is authored in Markdown; the site is rendered with the [PaperMod](https://github.com/adityatelange/hugo-PaperMod) theme. Requires Hugo **extended** (developed with v0.162.1).
 
+## Writing Blog Posts
+### Language
+
+Use Chinese whenever possible, but use English words and phrases where natural. For example, common English terms well-known to Chinese people can be written in English directly, such as: company names "OpenAI", "Anthropic"; AI technologies "RAG", "LLM", "Agents", "Prompts".
+
+### Writing Style
+
+Make each post simple, concise, short, direct, and easy to understand. Each post ideally should be less than 5 pages.
+
+### Format
+
+Prefer Markdown format.
+
+### Web Links
+
+Use Web Links whenever it makes sense.
+
+### Images
+
+Use Images whenever it makes sense, but not too many to be distracting.
+
 ## Commands
 
 ```bash
