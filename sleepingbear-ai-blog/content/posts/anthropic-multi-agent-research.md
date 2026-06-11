@@ -32,16 +32,36 @@ Anthropic 给"研究（Research）"的定义是：**开放式（open-ended）的
 - **Subagents（工人）**：每个拿到一个具体任务，独立去搜索，用 interleaved thinking 评估结果，再把**过滤后**的发现返回给 lead。Subagent 的角色就像一个"智能过滤器"。
 - **CitationAgent**：最后专门负责给结论标注引用来源。
 
-流程大致是：
+下面这张图是系统的整体结构——一个 Lead 在上层协调，多个 Subagents 在下层并行干活：
 
+```mermaid
+flowchart TD
+    U(["用户提问"]) --> L["Lead Agent（指挥官）"]
+    L -. 制定计划 .-> M[("Memory 外部记忆")]
+    L ==> S1["Subagent 1"]
+    L ==> S2["Subagent 2"]
+    L ==> S3["Subagent 3"]
+    S1 --> T1["并行调用工具 / 搜索"]
+    S2 --> T2["并行调用工具 / 搜索"]
+    S3 --> T3["并行调用工具 / 搜索"]
+    S1 -- 过滤后的发现 --> L
+    S2 -- 过滤后的发现 --> L
+    S3 -- 过滤后的发现 --> L
+    L --> C["CitationAgent 标注引用"]
+    C --> R(["带引用的最终答案"])
 ```
-用户提问
-  → Lead Agent 思考 + 制定计划（存入 memory）
-  → 并行派出 3-5 个 Subagents
-  → 每个 Subagent 并行调用 3+ 个工具搜索
-  → Lead 汇总结果，判断是否需要补充研究
-  → CitationAgent 标注引用
-  → 返回带引用的最终答案
+
+如果按时间顺序看，整个流程是这样的，注意 Lead 汇总后可以**回头补充研究**，形成一个循环：
+
+```mermaid
+flowchart TD
+    A["① 用户提问"] --> B["② Lead 思考 + 制定计划<br/>存入 memory"]
+    B --> C["③ 并行派出 3-5 个 Subagents"]
+    C --> D["④ 每个 Subagent 并行调用 3+ 工具搜索"]
+    D --> E["⑤ Lead 汇总结果<br/>判断是否需要补充研究"]
+    E -- 需要补充 --> C
+    E -- 已经足够 --> F["⑥ CitationAgent 标注引用"]
+    F --> G["⑦ 返回带引用的最终答案"]
 ```
 
 关键在于**并行**：Lead 一次起 3-5 个 subagents，每个 subagent 又并行调用多个工具。对复杂问题，研究时间最多能**减少 90%**。
