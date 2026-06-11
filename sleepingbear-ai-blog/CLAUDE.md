@@ -9,7 +9,7 @@ A Hugo static site for the SleepingBear blog — a bilingual (English + Chinese)
 ## Writing Blog Posts
 ### Language
 
-Use Chinese whenever possible, but use English words and phrases where natural. For example, common English terms well-known to Chinese people can be written in English directly, such as: company names "OpenAI", "Anthropic"; AI technologies "RAG", "LLM", "Agents", "Prompts".
+Use Chinese whenever possible, but use English words and phrases where natural. For example, common English terms well-known to Chinese people can be written in English directly, such as: company names "OpenAI", "Anthropic"; AI technologies "RAG", "LLM", "Agents", "Prompts", "Deep Research", "Multi-Agent", "Single-Agent".
 
 ### Writing Style
 

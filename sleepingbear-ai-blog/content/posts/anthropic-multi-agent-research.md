@@ -1,10 +1,10 @@
 +++
 date = '2026-06-10T10:00:00-07:00'
 draft = false
-title = 'Anthropic Deep Research: 多智能体架构'
+title = 'Anthropic Deep Research: Multi-Agent 架构'
 +++
 
-最近 Anthropic 发布了一篇很好的工程博客，讲他们如何用 Multi-Agent（多智能体）架构来构建 Research 功能。这篇文章信息量很大，下面我把核心的设计和经验，整理成一节简单清晰的课。
+最近 Anthropic 发布了一篇很好的工程博客，讲他们如何用 Multi-Agent 架构来构建 Deep Research 功能。这篇文章信息量很大，下面我把核心的设计和经验，整理成一节简单清晰的课。
 
 > 原文：[How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system)
 
@@ -18,11 +18,11 @@ Anthropic 给"研究（Research）"的定义是：**开放式（open-ended）的
 
 1. **并行探索**：多个 subagents 同时进行，各自用**独立的 context window**，探索问题的不同侧面。
 2. **关注点分离（separation of concerns）**：每个 subagent 有自己独立的工具、prompt 和探索轨迹，这降低了路径依赖，让每条调查更深入、更独立。
-3. **突破单 context 上限**：研究要处理的信息常常超出单个 Agent 的 context window，多个 Agent 分摊就能装下更多。
+3. **突破单 context 上限**：研究要处理的信息常常超出 Single-Agent 的 context window，多个 Agent 分摊就能装下更多。
 
-效果有多好？Anthropic 给了一个数字：用 Claude Opus 4 当 lead、Claude Sonnet 4 当 subagents 的多智能体系统，在内部研究评测上比单个 Opus 4 **高出 90.2%**。
+效果有多好？Anthropic 给了一个数字：用 Claude Opus 4 当 lead、Claude Sonnet 4 当 subagents 的 Multi-Agent 系统，在内部研究评测上比 Single-Agent 的 Opus 4 **高出 90.2%**。
 
-一个经典例子：找出 S&P 500 里所有 IT 公司的董事会成员。这种需要广度优先、同时铺开多条搜索的任务，单个 Agent 顺序搜索会失败；多个 subagents 并行分工就能搞定。
+一个经典例子：找出 S&P 500 里所有 IT 公司的董事会成员。这种需要广度优先、同时铺开多条搜索的任务，Single-Agent 顺序搜索会失败；多个 subagents 并行分工就能搞定。
 
 ## 二、架构：Orchestrator-Worker 模式
 
@@ -51,17 +51,17 @@ Anthropic 给"研究（Research）"的定义是：**开放式（open-ended）的
 天下没有免费的午餐。并行很快，但很烧 token：
 
 - 普通 chat：基准
-- 单个 Agent：约 **4 倍** token
+- Single-Agent：约 **4 倍** token
 - Multi-Agent：约 **15 倍** token
 
 所以一条重要原则：**只有当任务价值足够高，能覆盖这个成本时，才值得用 Multi-Agent。**
 
-为什么多智能体能赢？Anthropic 给了一个很反直觉、却很核心的结论：
+为什么 Multi-Agent 能赢？Anthropic 给了一个很反直觉、却很核心的结论：
 
 > Multi-agent systems work mainly because they help spend enough tokens to solve the problem.
-> （多智能体之所以有效，主要是因为它们能花掉足够多的 token 来解决问题。）
+> （Multi-Agent 之所以有效，主要是因为它们能花掉足够多的 token 来解决问题。）
 
-数据也支持这点：在 BrowseComp 评测上，**token 用量、工具调用次数、模型选择**这三个因素一起能解释 **95%** 的性能差异，其中**仅 token 用量一项就解释了 80%**。换句话说，给任务"喂"足够多的 token 去探索，本身就是性能的主要来源——而 Multi-Agent 正是一种把 token 用量扩展到单 Agent 装不下的程度的方式。
+数据也支持这点：在 BrowseComp 评测上，**token 用量、工具调用次数、模型选择**这三个因素一起能解释 **95%** 的性能差异，其中**仅 token 用量一项就解释了 80%**。换句话说，给任务"喂"足够多的 token 去探索，本身就是性能的主要来源——而 Multi-Agent 正是一种把 token 用量扩展到 Single-Agent 装不下的程度的方式。
 
 ## 四、Prompt Engineering 的关键经验
 
@@ -105,8 +105,8 @@ Anthropic 给"研究（Research）"的定义是：**开放式（open-ended）的
 
 - **Why**：研究任务不可预测、信息超出单 context、可并行 → Multi-Agent。
 - **架构**：Orchestrator-Worker，Lead 分工 + Subagents 并行 + CitationAgent 引用。
-- **数字**：比单 Agent 高 90.2%；时间省 90%；但 token 是 chat 的 15 倍；token 一项就解释 80%（三因素共 95%）的性能差异。
-- **核心结论**：多智能体有效，主要是因为它能"花掉足够多的 token 来解决问题"。
+- **数字**：比 Single-Agent 高 90.2%；时间省 90%；但 token 是 chat 的 15 倍；token 一项就解释 80%（三因素共 95%）的性能差异。
+- **核心结论**：Multi-Agent 有效，主要是因为它能"花掉足够多的 token 来解决问题"。
 - **Prompt**：prompt engineering 是主要杠杆——分工要具体、投入匹配复杂度、工具设计即 UX、先宽后窄、让 Agent 自我改进、善用并行。
 - **边界**：共享上下文、强依赖、编程任务、低价值任务 → 不适合。
 
