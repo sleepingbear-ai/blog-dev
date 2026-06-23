@@ -190,7 +190,7 @@ if __name__ == "__main__":
 
 ## 四、运行示例
 
-以中文问题 `query = "Claude Code 是如何实现的？"` 为例。从日志能看到 LLM **自己决定**搜了两次——先用中文 query，再自动换成英文 query 补充信息，第三轮才作答：
+以`query = "Claude Code 是如何实现的？"` 为例。能看到 LLM **自己决定**搜了两次——先用中文 query，再自动换成英文 query 补充信息，第三轮才作答：
 
 ```
 [Loop 1] Calling LLM...
