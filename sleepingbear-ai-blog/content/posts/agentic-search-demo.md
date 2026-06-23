@@ -4,7 +4,7 @@ draft = false
 title = 'Agentic AI Search 原理和代码: 极简演示'
 +++
 
-传统的基于RAG的 AI Search里，LLM 只负责把RAG 搜索的结果整合成最终答案， LLM 不参与"该怎么搜"。
+传统的基于 RAG 的 AI Search 里，LLM 只负责把 RAG 搜索的结果整合成最终答案，LLM 不参与"该怎么搜"。
 
 **Agentic AI Search** 把 LLM 变成主动的 **Orchestrator**（指挥者）。它自己决定：
 
