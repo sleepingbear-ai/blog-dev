@@ -4,7 +4,7 @@ draft = false
 title = 'Agentic AI Search 原理和代码: 极简演示'
 +++
 
-传统的 RAG 搜索里，LLM 是个**被动的读者**：先固定搜一次，把结果一股脑喂给 LLM，让它合成一个答案。LLM 不参与"该怎么搜"。
+传统的基于RAG的 AI Search里，LLM 只负责把RAG 搜索的结果整合成最终答案， LLM 不参与"该怎么搜"。
 
 **Agentic AI Search** 把 LLM 变成主动的 **Orchestrator**（指挥者）。它自己决定：
 
@@ -42,7 +42,7 @@ flowchart TD
 
 ## 二、完整代码
 
-整个程序就一个 Python 文件，约 124 行：
+整个程序就一个 Python 文件，约 120 行：
 
 ```python
 import os, json, sys
