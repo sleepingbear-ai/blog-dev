@@ -190,22 +190,38 @@ if __name__ == "__main__":
 
 ## 四、运行示例
 
-问 "How was Claude Code implemented?"，从日志能清楚看到 LLM **自己决定**搜了两次、第三轮才作答：
+以中文问题 `query = "Claude Code 是如何实现的？"` 为例。从日志能看到 LLM **自己决定**搜了两次——先用中文 query，再自动换成英文 query 补充信息，第三轮才作答：
 
 ```
 [Loop 1] Calling LLM...
-[Loop 1] Tool call: web_search('Claude Code implementation details')
+[Loop 1] Tool call: web_search('Claude Code 实现 研究')
 [Loop 1] Got 10 results
 
 [Loop 2] Calling LLM...
-[Loop 2] Tool call: web_search('Claude Code architecture and features')
+[Loop 2] Tool call: web_search('Claude Code implementation details')
 [Loop 2] Got 10 results
 
 [Loop 3] Calling LLM...
 [Loop 3] LLM returned answer. Exiting loop.
 ```
 
-最终输出是一篇带 `[n](URL)` 引用的 Answer，加上去重后的完整来源列表。
+最终输出分两段——带 `[n](URL)` 引用的 **Answer**，和按发现顺序排列的 **Web Search Results**（下面是节选）：
+
+> **Answer**（model: gpt-4o-mini）
+>
+> Claude Code 是由 Anthropic 开发的一款先进编程助手，旨在通过综合的 AI 技术与工具集成来提升软件开发效率……
+>
+> **1. 系统架构和设计**：用户接口层、代理循环、权限系统、工具管理、状态与持久性。根据源码分析，超过 98% 的代码用于基础设施管理 [1][12]。
+>
+> **2. 功能特性**：代码编辑和运行、上下文理解、任务驱动、用户和项目记忆系统 [1][11]。
+>
+> **3. 实现技术**：用 TypeScript 构建，代码库接近 51 万行 [1][12]。
+>
+> **Web Search Results**
+> - [1] 深度解析 Claude Code 51 万行源码背后的设计实现 - 张永清 - 博客园
+> - [2] ThreeFish-AI/analysis_claude_code: Claude Code 逆向工程研究仓库
+
+一个有意思的细节：LLM 第一轮用中文搜，发现还不够，第二轮自己换成英文 query 再补一次——这正是 Agentic Search 里 LLM 主动驱动搜索的体现。
 
 ## 小结
 
