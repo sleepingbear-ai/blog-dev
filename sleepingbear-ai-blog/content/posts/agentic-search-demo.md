@@ -175,7 +175,24 @@ if __name__ == "__main__":
 
 代码分三步：定义工具、跑 Agent Loop、格式化输出。核心是中间的 **Agent Loop**（`run_agent()`），下面只讲两个关键点。
 
-**把搜索定义成一个工具。** `WEB_SEARCH_TOOL` 是给 LLM 看的 JSON schema——工具叫 `web_search`、干什么用、要一个 `query` 参数。LLM 据此决定**要不要搜、用什么 query 搜**；但 schema 只是声明，真正执行搜索（调 Tavily 的 `search_web()`）的是我们的代码。
+**把搜索定义成一个工具。** `WEB_SEARCH_TOOL` 是给 LLM 看的 JSON schema——工具叫 `web_search`、干什么用、要一个 `query` 参数。LLM 据此决定要不要搜、用什么 query 搜；但 schema 只是声明，真正执行搜索（调 Tavily 的 `search_web()`）的是我们的代码。
+
+```python
+WEB_SEARCH_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "web_search",
+        "description": "Search the web for current information on a topic.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "The search query"}
+            },
+            "required": ["query"]
+        }
+    }
+}
+```
 
 **循环里每轮二选一。** 带着 `messages`（对话 context）调一次 LLM，看它返回什么：
 
