@@ -17,7 +17,7 @@ title = 'Agentic AI Search: 原理和代码'
 - 问 "1 + 2" —— LLM 直接回答 "3"，根本不触发搜索。
 - 问 "Claude Code 是怎么实现的？" —— LLM 自己发起了两次不同 query 的搜索，攒够信息后才作答。
 
-这就是从 RAG 到 **Agentic AI Search** 的转变，也是现代 AI 聊天与搜索引擎背后的核心范式。下面用 ~120 行 Python 把它从零讲清楚。
+这就是从 RAG 到 **Agentic AI Search** 的转变，也是现代 AI 聊天与搜索引擎背后的核心范式。下面用 ~120 行 Python 来讲解。
 
 ## 一、原理：Agent Loop + Tool Use
 
