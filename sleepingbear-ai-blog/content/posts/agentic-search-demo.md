@@ -184,7 +184,7 @@ if __name__ == "__main__":
     )
     ```
 
-2. **每轮二选一：**
+2. **看LLM Call返回结果**
     - 返回 `tool_calls` —— LLM 决定要搜，那就执行 Web Search，结果去重存入 `seen_urls` 并追加回 `messages`，进入循环下一轮。
     - 不返回 `tool_calls` —— LLM 已拿到足够信息、直接作答，结束 Agentic Loop。
 
