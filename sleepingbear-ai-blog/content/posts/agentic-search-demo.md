@@ -1,7 +1,7 @@
 +++
 date = '2026-06-22T10:00:00-07:00'
 draft = false
-title = 'Agentic AI Search 原理和代码'
+title = 'Agentic AI Search: 原理和代码'
 +++
 
 传统的基于 RAG 的 AI Search 里，LLM 只负责把 RAG 搜索的结果整合成最终答案，LLM 不参与"该怎么搜"。
