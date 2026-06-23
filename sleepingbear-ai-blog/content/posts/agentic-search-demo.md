@@ -226,7 +226,7 @@ if __name__ == "__main__":
 ## 小结
 
 - **Agentic 架构让 LLM 主动驱动搜索**：自己改写 query、评估结果、攒够 context 再作答——和人类查资料的"先宽后窄"很像。
-- **Tool Use 是干净的抽象**：把 `web_search` 定义成一个工具，让 LLM 决定何时调用，比预先固定搜一次清晰得多，而且从循环日志里能一眼看出它搜了什么、为什么。
+- **Tool Use 是干净的抽象**：把 `web_search` 定义成一个工具，让 LLM 决定调用。
 - 这套 **Agentic Loop + Tool Use** 正是 Perplexity、ChatGPT、Claude 等现代 AI 搜索的底层范式，也是现代 AI Agent 的核心。
 
 ---
