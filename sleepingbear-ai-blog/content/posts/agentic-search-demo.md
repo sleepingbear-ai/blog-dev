@@ -173,9 +173,9 @@ if __name__ == "__main__":
 
 ## 三、代码讲解
 
-代码分三步：定义工具、跑 Agent Loop、格式化输出。核心是中间的 **Agent Loop**（`run_agent()`）:
+核心是中间的 **Agent Loop**（`run_agent()`）：
 
-**把搜索定义成一个工具。** `WEB_SEARCH_TOOL` 是为LLM 提供Web Seearch 工具调用：
+**定义 Web Search 为工具。** 调用 LLM 时把它作为工具传进去：
 ```python
 response = litellm.completion(
             model=model, messages=messages,
