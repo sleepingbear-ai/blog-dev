@@ -173,39 +173,16 @@ if __name__ == "__main__":
 
 ## 三、代码讲解
 
-### 配置
+代码分三步：定义工具、跑 Agent Loop、格式化输出。核心是中间的 **Agent Loop**（`run_agent()`），下面只讲两个关键点。
 
-- `MODEL`：用哪个 LLM。借助 [LiteLLM](https://github.com/BerriAI/litellm)，换成 `gpt-4o`、`claude-3-5-haiku` 等只改这一行。
-- `TOP_K`：每次搜索最多取几条结果（Tavily 上限 10）。
-- `MAX_LOOP_TIMES`：一次请求最多调用 LLM 几次，也就是循环上限。
+**把搜索定义成一个工具。** `WEB_SEARCH_TOOL` 是给 LLM 看的 JSON schema——工具叫 `web_search`、干什么用、要一个 `query` 参数。LLM 据此决定**要不要搜、用什么 query 搜**；但 schema 只是声明，真正执行搜索（调 Tavily 的 `search_web()`）的是我们的代码。
 
-### Step 1：定义 Web Search 工具
+**循环里每轮二选一。** 带着 `messages`（对话 context）调一次 LLM，看它返回什么：
 
-两样东西：
+1. **没有 `tool_calls`** —— LLM 直接给了答案，退出循环、返回结果。
+2. **有 `tool_calls`** —— 执行搜索：解析出 `query` → 调 `search_web()` → 结果靠 `seen_urls` 跨多次搜索**去重**并分配全局编号 `[n]`，再以 `role: "tool"` 的消息追加回 `messages`。下一轮 LLM 就能"看到"刚搜到的内容，决定继续搜还是作答。
 
-- `search_web()`：真正干活的函数，调用 [Tavily](https://tavily.com/) 返回 top-k 结果，每条含 `title / url / content / score`。
-- `WEB_SEARCH_TOOL`：给 LLM 看的**工具说明书**（JSON schema）——工具叫 `web_search`、干什么用、需要一个 `query` 字符串参数。LLM 据此决定要不要调、用什么 query 调。注意：schema 只是**声明**，LLM 不会自己执行，执行由我们的代码完成。
-
-### Step 2：Agent Loop（核心）
-
-`SYSTEM_PROMPT` 给 LLM 立规矩：可以**多次**用不同 query 搜索；每条结果带编号 `[n]` 和 URL；答案里用 `[n](URL)` 标注引用；信息够了就写一篇清晰的 markdown 答案。
-
-`run_agent()` 里几个角色：
-
-- `messages`：对话 context，开头是 system + user 两条，搜索结果会不断追加进来。
-- `seen_urls` + `counter`：跨所有搜索做**去重**并分配全局编号——同一个 URL 第一次出现时编号，之后复用同一个 `[n]`。
-
-循环每一轮：
-
-1. 带着 `messages` 和工具调用一次 LLM（`tool_choice="auto"` 让 LLM 自己决定搜还是答）。
-2. **如果没有 `tool_calls`** —— 说明 LLM 直接给了答案，退出循环、返回结果。
-3. **如果有 `tool_calls`** —— 先把 LLM 这条消息追加回 `messages`（协议要求），再逐个执行：解析出 `query` → 调 `search_web()` → 把每条结果去重编号后，拼成带 `[n]` 的文本，以 `role: "tool"` 的消息追加回 context。然后进入下一轮，LLM 就能"看到"刚搜到的内容，决定继续搜还是作答。
-
-循环跑满 `max_loops` 还没作答，就兜底返回 LLM 最后一次说的内容，避免死循环。
-
-### Step 3：格式化输出
-
-`format_output()` 把结果按发现顺序（`[n]` 升序）排好，拼成两段 markdown：上面是带引用的 **Answer**，下面是完整的 **Web Search Results** 列表。这样答案里的 `[n]` 和下面的来源能一一对上。
+`MAX_LOOP_TIMES` 是循环上限，跑满还没作答就兜底返回，避免死循环。
 
 ## 四、运行示例
 
