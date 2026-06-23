@@ -175,7 +175,7 @@ if __name__ == "__main__":
 
 核心是中间的 **Agent Loop**（`run_agent()`）：
 
-- **定义 Web Search 为工具。** 调用 LLM 回答用户 Query 时，把工具传给它：
+1. **定义 Web Search 为工具。** 调用 LLM 回答用户 Query 时，把工具传给它：
 
     ```python
     response = litellm.completion(
@@ -184,8 +184,9 @@ if __name__ == "__main__":
     )
     ```
 
-- **返回 `tool_calls`** —— LLM 决定要搜，那就执行 Web Search，结果去重存入 `seen_urls` 并追加回 `messages`，进入下一轮。
-- **不返回 `tool_calls`** —— LLM 已拿到足够信息、直接作答，结束 Agentic Loop。
+2. **每轮二选一：**
+    - 返回 `tool_calls` —— LLM 决定要搜，那就执行 Web Search，结果去重存入 `seen_urls` 并追加回 `messages`，进入循环下一轮。
+    - 不返回 `tool_calls` —— LLM 已拿到足够信息、直接作答，结束 Agentic Loop。
 
 ## 四、运行示例
 
