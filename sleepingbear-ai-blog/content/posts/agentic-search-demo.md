@@ -1,12 +1,12 @@
 +++
 date = '2026-06-22T10:00:00-07:00'
 draft = false
-title = 'Agentic Search 原理和代码: 极简演示'
+title = 'Agentic AI Search 原理和代码: 极简演示'
 +++
 
 传统的 RAG 搜索里，LLM 是个**被动的读者**：先固定搜一次，把结果一股脑喂给 LLM，让它合成一个答案。LLM 不参与"该怎么搜"。
 
-**Agentic Search** 把 LLM 变成主动的 **Orchestrator**（指挥者）。它自己决定：
+**Agentic AI Search** 把 LLM 变成主动的 **Orchestrator**（指挥者）。它自己决定：
 
 - 搜**什么** query
 - 要不要**再搜**一次（换个 query）
@@ -17,7 +17,7 @@ title = 'Agentic Search 原理和代码: 极简演示'
 - 问 "1 + 2" —— LLM 直接回答 "3"，根本不触发搜索。
 - 问 "Claude Code 是怎么实现的？" —— LLM 自己发起了两次不同 query 的搜索，攒够信息后才作答。
 
-这就是从 RAG 到 **Agentic Search** 的转变，也是现代 AI 聊天与搜索引擎背后的核心范式。下面用 ~120 行 Python 把它从零讲清楚。
+这就是从 RAG 到 **Agentic AI Search** 的转变，也是现代 AI 聊天与搜索引擎背后的核心范式。下面用 ~120 行 Python 把它从零讲清楚。
 
 ## 一、原理：Agent Loop + Tool Use
 
@@ -235,6 +235,6 @@ if __name__ == "__main__":
 
 ---
 
-#ai #agenticsearch #aiagents #llm #rag #tooluse #aisearch #aicoding #人工智能 #ai学习 #大模型
+#ai #agenticaisearch #aiagents #llm #rag #tooluse #aisearch #aicoding #人工智能 #ai学习 #大模型
 
 If you like this post, consider star [the repo](https://github.com/sleepingbear-ai/sleepingbear-ai.github.io).
