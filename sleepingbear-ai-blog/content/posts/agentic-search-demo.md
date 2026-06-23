@@ -175,20 +175,17 @@ if __name__ == "__main__":
 
 核心是中间的 **Agent Loop**（`run_agent()`）：
 
-**定义 Web Search 为工具。** 调用 LLM 时把它作为工具传进去：
-```python
-response = litellm.completion(
-            model=model, messages=messages,
-            tools=[WEB_SEARCH_TOOL], tool_choice="auto"
-        )
-```
+- **定义 Web Search 为工具。** 调用 LLM 回答用户 Query 时，把工具传给它：
 
-**循环里每轮二选一。** 带着 `messages`（对话 context）调一次 LLM，看它返回什么：
+    ```python
+    response = litellm.completion(
+        model=model, messages=messages,
+        tools=[WEB_SEARCH_TOOL], tool_choice="auto"
+    )
+    ```
 
-1. **没有 `tool_calls`** —— LLM 直接给了答案，退出循环、返回结果。
-2. **有 `tool_calls`** —— 执行搜索：解析出 `query` → 调 `search_web()` → 结果靠 `seen_urls` 跨多次搜索**去重**并分配全局编号 `[n]`，再以 `role: "tool"` 的消息追加回 `messages`。下一轮 LLM 就能"看到"刚搜到的内容，决定继续搜还是作答。
-
-`MAX_LOOP_TIMES` 是循环上限，跑满还没作答就兜底返回，避免死循环。
+- **返回 `tool_calls`** —— LLM 决定要搜，那就执行 Web Search，结果去重存入 `seen_urls` 并追加回 `messages`，进入下一轮。
+- **不返回 `tool_calls`** —— LLM 已拿到足够信息、直接作答，结束 Agentic Loop。
 
 ## 四、运行示例
 
