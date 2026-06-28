@@ -148,19 +148,17 @@ LLM 不是天生就会写 JSON Tool Call 请求的，这是训练出来的：
 
 ### 各大实验室实际怎么训练
 
-旗舰实验室的技术报告，透露了高层次的"配方"：
-
 #### OpenAI
 
 原生的 "Function Calling" 在 2023 年 6 月（`gpt-3.5-turbo-0613`）上线。他们用这样的数据做 fine-tune：System Prompt 里含 API Schema，目标输出是字符串化的 JSON。更晚的模型（GPT-4o）则针对 **parallel function calling**（并行函数调用）做了调优。
 
 #### Anthropic
 
-Claude 被训练成把工具描述当作**硬约束**，用 RLHF 和 DPO 来惩罚幻觉的、或未列出的参数。更近期的 **programmatic tool calling**，训练模型直接吐出*编排代码*（Python 循环），在沙箱里运行——处理成千上万 token 的中间数据，只把压缩后的最终答案返回主 Context。
+Claude 被训练成把工具描述当作**hard constraints**，用 RLHF 和 DPO 来惩罚幻觉的、错误或缺失的参数。
 
 #### Google
 
-Gemini 的技术报告提到，Tool Use 不是在 post-training 阶段才"装"上去的——结构化的 API 交互、数据库查询、多轮编程日志，是和普通文本一起混进 **pre-training** 的。自动化的校验循环，会惩罚任何过不了 JSON 校验器或编译器的工具参数。
+Gemini 的技术报告提到，Tool Use 不仅仅是在 post-training 阶段才进行的：结构化的 API 交互、数据库查询、多轮编程日志，是和普通文本一起混进 **pre-training** 的。自动化的校验循环，会惩罚任何过不了 JSON 校验器或编译器的工具参数。
 
 ## 研究与工程版图
 
