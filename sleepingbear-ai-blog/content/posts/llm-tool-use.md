@@ -75,8 +75,6 @@ summary = """
         └───────────┘
 ```
 
-逐个拆开这四个环节：
-
 ### 1. 蓝图（System Prompt）
 
 在你输入任何内容之前，AI Agent 已经注入了一段隐藏的 **System Prompt**，里面列着可用的工具。每个工具都配有严格的蓝图——通常是 JSON Schema——讲清楚：
@@ -122,7 +120,7 @@ print(call.function.arguments)  # '{"location": "Paris", "unit": "celsius"}'
 
 ### 2. 触发（识别到需要）
 
-当你问巴黎天气时，模型意识到自己的静态训练数据答不了，把你的请求和工具描述做匹配，然后决定行动。它不再用自然语言回复，而是切换状态，输出一个 Tool Use 请求（常常包在 `<tool_call>` 之类的特殊语法里，或就是裸 JSON），声明它的意图：
+当你问巴黎天气时，模型意识到自己的静态训练数据答不了，把你的请求和工具描述做匹配，然后决定行动。它输出一个 Tool Use 请求（常常包在 `<tool_call>` 之类的特殊语法里，或就是裸 JSON），声明它的意图：
 
 ```json
 {
@@ -139,7 +137,7 @@ print(call.function.arguments)  # '{"location": "Paris", "unit": "celsius"}'
 
 ### 4. 作答（综合出答案）
 
-工具结果现在已经躺在它的 Context 里，LLM 据此生成回复：*"巴黎现在 22°C，晴天！"*
+工具运行结果现在已经在它的 Context 里，LLM 据此生成回复：*"巴黎现在 22°C，晴天！"*
 
 ## LLM 是怎么学会这个行为的？
 
