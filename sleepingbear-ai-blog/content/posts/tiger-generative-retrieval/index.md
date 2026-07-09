@@ -83,7 +83,7 @@ TIGER 对召回换了条路，分两个阶段。**Stage 1** 把每个 item 变�
 
 *RQ-VAE 架构（[论文](https://arxiv.org/abs/2305.05065) Figure 3）。*
 
-举例：拿一个 item 走一遍。**DNN encoder** 把它的 embedding 映射成 latent `r0 = [0.90, 0.60]`（真实 latent 是 32 维，这里用 2 维是为了数字看得清）。接着 **residual quantizer** 一层一层来，每层挑出最近的那个 codebook 向量（`c_d = argmin_i ‖r_d − C_d[i]‖`），把剩下的残差（`r_{d+1} = r_d − C_d[c_d]`）交给下一层：
+举例：假设 **DNN encoder** 把一个 item 的 embedding 映射成 latent `r0 = [0.90, 0.60]`（这里用 2 维是为了简洁）。接着 **residual quantizer** 一层一层来，每层挑出最近的那个 codebook 向量（`c_d = argmin_i ‖r_d − C_d[i]‖`），把剩下的残差 residual（`r_{d+1} = r_d − C_d[c_d]`）交给下一层：
 
 ```
 Level 0（粗）： C0 里最近的是 index 7， C0[7] = [0.80, 0.50]   → c0 = 7
