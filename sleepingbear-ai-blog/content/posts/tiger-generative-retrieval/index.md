@@ -96,8 +96,6 @@ Level 2（细）： C2 里最近的是 index 4， C2[4] = [-0.02, 0.02]  → c2 
 
 挑出来的这几个 index 就是 **Semantic ID =（7, 1, 4）**。把选中的 codeword 向量加起来，就得到 quantization 之后的表示，它能重建出原来的 latent——`C0[7] + C1[1] + C2[4] = [0.90, 0.60] = r0`——**DNN decoder** 再把它映射回 item embedding。
 
-图里的 codebook 只有 8 个 entry，是为了好懂；论文里每个 codebook 有 **256** 个 entry。此外还会**再拼上第 4 个 codeword**，用来区分前三位恰好撞车的 item——所以每个 item 最终是一个**长度为 4 的元组**，这也是 Stage 2 里一个 item 就是 4 个 token 的原因。
-
 #### 训练 RQ-VAE：三个 Loss Functions
 
 encoder、decoder 和所有 codebook 是联合训练的。麻烦在于：挑最近的 codeword（`argmin`）这一步**不可求导**，梯度没法正常穿过去。RQ-VAE 的办法是用 *straight-through estimator*，配上三个 loss（对每一层 `d` 求和）：
