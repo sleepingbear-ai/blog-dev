@@ -57,10 +57,10 @@ TIGER 针对的是**召回**这一段，任务是 *sequential recommendation*（
         user ID / 画像、上下文                    品牌、文本、价格 …
 ```
 
-线上服务时，两座塔是拆开用的：所有 **item** embedding 离线算好，灌进 ANN Index；**user** embedding 实时算出来，拿去查这个 Index，取最近邻的那些 item。
+线上服务时，两座塔是拆开用的：所有 **item** embedding 离线算好，灌进 ANN Index；**user** embedding 实时算出来，拿去搜索这个 Index，取最近邻的那些 item。
 
 ```
-用户历史 ─► [ User Tower ] ─► user emb ─► 查 ANN Index ─► top-K 最近邻 item
+用户历史 ─► [ User Tower ] ─► user emb ─► 搜索 ANN Index ─► top-K 最近邻 item
                                           （基于全量 item emb
                                             预先建好）
 ```
@@ -77,13 +77,13 @@ TIGER 对召回换了条路，分两个阶段。**Stage 1** 把每个 item 变�
 
 ### Stage 1 —— 内容 embedding → Semantic ID（靠 RQ-VAE）
 
-把 item 的文本特征（标题、品牌、类目、价格、描述）拼起来，过一遍冻结的 **Sentence-T5** encoder，得到一个 768 维 embedding，再用 **RQ-VAE**（Residual-Quantized VAE）对它做 quantization。RQ-VAE 本质是个 autoencoder，它的 bottleneck 是一摞 vector quantizer——每个层级一个——共同产出 Semantic ID：
+把 item 的文本特征（标题、品牌、类目、价格、描述）拼起来，过一遍 frozen 的 **Sentence-T5** encoder，得到一个 768 维 embedding，再用 **RQ-VAE**（Residual-Quantized VAE）对它做 quantization。RQ-VAE 本质是个 autoencoder，它的核心是一摞 vector quantizer——每个层级一个——共同产出 Semantic ID：
 
 ![RQ-VAE 架构：DNN encoder 把 item embedding 映射成一个 latent，residual quantizer 从三个 codebook 里各挑一个 codeword（这里得到 Semantic code 7, 1, 4），DNN decoder 再从这些 codeword 向量的和里重建出 embedding。](rqvae.png)
 
 *RQ-VAE 架构（[论文](https://arxiv.org/abs/2305.05065) Figure 3）。*
 
-拿一个 item 走一遍。**DNN encoder** 把它的 embedding 映射成 latent `r0 = [0.90, 0.60]`（真实 latent 是 32 维，这里用 2 维是为了数字看得清）。接着 **residual quantizer** 一层一层来，每层挑出最近的那个 codebook 向量（`c_d = argmin_i ‖r_d − C_d[i]‖`），把剩下的残差（`r_{d+1} = r_d − C_d[c_d]`）交给下一层：
+举例：拿一个 item 走一遍。**DNN encoder** 把它的 embedding 映射成 latent `r0 = [0.90, 0.60]`（真实 latent 是 32 维，这里用 2 维是为了数字看得清）。接着 **residual quantizer** 一层一层来，每层挑出最近的那个 codebook 向量（`c_d = argmin_i ‖r_d − C_d[i]‖`），把剩下的残差（`r_{d+1} = r_d − C_d[c_d]`）交给下一层：
 
 ```
 Level 0（粗）： C0 里最近的是 index 7， C0[7] = [0.80, 0.50]   → c0 = 7
@@ -96,11 +96,11 @@ Level 2（细）： C2 里最近的是 index 4， C2[4] = [-0.02, 0.02]  → c2 
 
 挑出来的这几个 index 就是 **Semantic ID =（7, 1, 4）**。把选中的 codeword 向量加起来，就得到 quantization 之后的表示，它能重建出原来的 latent——`C0[7] + C1[1] + C2[4] = [0.90, 0.60] = r0`——**DNN decoder** 再把它映射回 item embedding。
 
-图里为了好懂，用的是 size 为 8 的迷你 codebook；论文里每个 codebook 有 **256** 个 entry。此外还会**再拼上第 4 个 codeword**，用来区分那些前三位恰好撞车的 item。所以每个 item 最终是一个**长度为 4 的元组**——这也是为什么 Stage 2 里，一个 item 就是 4 个 token。
+图里的 codebook 只有 8 个 entry，是为了好懂；论文里每个 codebook 有 **256** 个 entry。此外还会**再拼上第 4 个 codeword**，用来区分前三位恰好撞车的 item——所以每个 item 最终是一个**长度为 4 的元组**，这也是 Stage 2 里一个 item 就是 4 个 token 的原因。
 
-#### 训练 RQ-VAE：三个 Loss
+#### 训练 RQ-VAE：三个 Loss Functions
 
-encoder、decoder 和所有 codebook 是联合训练的。麻烦在于：挑最近的 codeword（`argmin`）这一步**不可导**，梯度没法正常穿过去。RQ-VAE 的办法是用 *straight-through estimator*（直通估计），配上一个三段式的 loss（对每一层 `d` 求和）：
+encoder、decoder 和所有 codebook 是联合训练的。麻烦在于：挑最近的 codeword（`argmin`）这一步**不可求导**，梯度没法正常穿过去。RQ-VAE 的办法是用 *straight-through estimator*，配上三个 loss（对每一层 `d` 求和）：
 
 ```
 L = ‖x − x̂‖²  +  Σ_d ( ‖sg[r_d] − e_cd‖²  +  β·‖r_d − sg[e_cd]‖² )
@@ -117,10 +117,10 @@ sg[·] = stop-gradient（反向传播时当常数）；e_cd = 第 d 层选中的
 
 ### Stage 2 —— 用 seq2seq Transformer 做生成式召回
 
-现在每个 item 是 4 个 token，词表大小是 `256 × 4 = 1024` 个语义 token。把用户历史摊平成一条 token 序列，喂给一个 **encoder–decoder Transformer**，让它自回归地生成下一个 item 的 4 个 codeword：
+现在每个 item 是 4 个 token，词表大小是 `256 × 4 = 1024` 个语义 token。把用户历史 flatten 成一个 token 序列，喂给一个 **encoder–decoder Transformer**，让它自回归地生成下一个 item 的 4 个 codeword：
 
 ```
-  用户历史（item 1..n，每个 = 4 个 codeword，摊平）
+  用户历史（item 1..n，每个 = 4 个 codeword，flatten）
  ┌──────────────────────────────────────────────────────────┐
  │ (c0,c1,c2,c3)_1  (c0,c1,c2,c3)_2  ...  (c0,c1,c2,c3)_n   │  输入 token 序列
  └───────────────────────────┬──────────────────────────────┘
