@@ -69,7 +69,7 @@ TIGER 针对的是**召回**这一段，任务是 *sequential recommendation*（
 
 - **Item ID 是随机的、没有语义。** ID 空间可能极其巨大（比如 Amazon 是十亿量级），这让 embedding 模型很难训练。工程上一般要靠 hash 分桶来压缩 ID 空间，于是又要在模型精度和模型大小之间做权衡。
 
-- **冷启动问题。** 新 item 的 embedding 是随机初始化的，在它积累够用户交互之前，很难被召回。
+- **冷启动（Cold Start）问题。** 新 item 的 embedding 是随机初始化的，在它积累够用户交互之前，很难被召回。
 
 ## TIGER 方法详解
 
@@ -140,14 +140,12 @@ Decoder 先预测 `c0`，把它喂回去预测 `c1`，依此类推——和 LLM 
 
 ## 实验与结果
 
-在 Amazon Review 数据集的三个类目（Beauty、Sports、Toys）上评测——序列推荐的标准 benchmark——指标是 Recall@K 和 NDCG@K。
+在 Amazon Review 数据集的三个类目（Beauty、Sports、Toys）上评测。
 
-结论概括起来就一句：**TIGER 在三个数据集、两个指标上全面胜出**，最大的提升出现在 Beauty 上，**NDCG@5 比 SASRec 高约 +29%**，**Recall@5 比 S³-Rec 高约 +17%**。不过比具体数字更值得关注的是两点：
+结论概括：**TIGER 在三个数据集、Recall@K 和 NDCG@K 两个指标上全面胜出**，最大的提升出现在 Beauty 上，**NDCG@5 比 SASRec 高约 +29%**，**Recall@5 比 S³-Rec 高约 +17%**。不过更值得关注的是两点：
 
-- **真正起作用的是 ID 的生成方式。** RQ-VAE 生成的 Semantic ID，明显优于基于 LSH（Locality Sensitive Hash）的 Semantic ID。
-- **冷启动和推荐多样性都变好了。** 新 item 可以借助与老 item 共享的 ID 前缀被召回；而基于 temperature 的解码，则能用一点精度换来更多样的推荐。
-
-还有个有意思的发现：解码时会以一个小得出乎意料的概率吐出**非法 Semantic ID**（映射不到任何 item），top-10 场景下大概只有 0.1%–1.6%。加大 beam size（多召回一些候选）就能解决，凑够合法的 top-K。
+- **真正起作用的是 ID 的生成方式。** RQ-VAE 生成的 Semantic ID，明显优于基于 LSH（Locality Sensitive Hash）生成的 Semantic ID。
+- **冷启动和推荐多样性（Diversity）都变好了。** 新 item 可以借助与老 item 共享的 ID 前缀被召回；而基于 temperature 的解码，则能用一点精度换来更多样的推荐。
 
 ## 我的一些想法
 
