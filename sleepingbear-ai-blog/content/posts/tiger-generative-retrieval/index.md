@@ -37,7 +37,7 @@ TIGER 针对的是**召回**这一段，任务是 *sequential recommendation*（
 
 **传统解法：Two-Tower embedding + ANN 检索**
 
-*Two-Tower* 模型有两座塔（两个神经网络），一座给 user，一座给 item。每座塔把自己那侧的特征编码成一个 embedding，落在**同一个共享空间**里，匹配分数就是两个 embedding 的点积（cosine 相似度）。训练目标是让真实发生过交互的 user–item 对得分高。
+*Two-Tower* 模型有两座塔（两个神经网络），一座给 user，一座给 item。每座塔把自己那侧的特征编码成一个 embedding，落在**同一个共享空间**里，匹配分数就是两个 embedding 的点积（cosine 相似度）。训练目标是让真实发生过交互的 user–item 得分高。
 
 ```
                        匹配分数 = sim(user_emb, item_emb)
@@ -57,19 +57,19 @@ TIGER 针对的是**召回**这一段，任务是 *sequential recommendation*（
         user ID / 画像、上下文                    品牌、文本、价格 …
 ```
 
-线上服务时，两座塔是拆开用的：所有 **item** embedding 离线算好，灌进 ANN 索引；**user** embedding 实时算出来，拿去查这个索引，取最近邻的那些 item。
+线上服务时，两座塔是拆开用的：所有 **item** embedding 离线算好，灌进 ANN Index；**user** embedding 实时算出来，拿去查这个 Index，取最近邻的那些 item。
 
 ```
-用户历史 ─► [ User Tower ] ─► user emb ─► 查 ANN 索引 ─► top-K 最近邻 item
+用户历史 ─► [ User Tower ] ─► user emb ─► 查 ANN Index ─► top-K 最近邻 item
                                           （基于全量 item emb
                                             预先建好）
 ```
 
 两个痛点：
 
-- **原子 Item ID 是随机的、没有语义。** ID 空间可能极其巨大（比如 Amazon 是十亿量级），这让 embedding 模型很难训练。工程上一般要靠 hash 分桶来压缩 ID 空间，于是又要在模型精度和模型体积之间做权衡。
+- **Item ID 是随机的、没有语义。** ID 空间可能极其巨大（比如 Amazon 是十亿量级），这让 embedding 模型很难训练。工程上一般要靠 hash 分桶来压缩 ID 空间，于是又要在模型精度和模型大小之间做权衡。
 
-- **冷启动问题。** 新 item 的 embedding 是随机初始化的，在积累够用户交互之前，根本召回不出来。
+- **冷启动问题。** 新 item 的 embedding 是随机初始化的，在它积累够用户交互之前，很难被召回。
 
 ## TIGER 方法详解
 
