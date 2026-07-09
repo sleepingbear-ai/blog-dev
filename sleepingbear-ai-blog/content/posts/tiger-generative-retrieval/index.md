@@ -1,13 +1,13 @@
 +++
 date = '2026-07-09T10:00:00-07:00'
 draft = false
-title = 'TIGER：把推荐的召回，变成"生成"'
+title = 'TIGER（生成式推荐的经典论文）: 解释和思考'
 summary = """
-  *读 TIGER（生成式推荐的经典论文）——用 RQ-VAE 给每个 item 生成 Semantic ID，再用自回归解码用户的 Semantic ID 序列来做召回。*
+  *用 RQ-VAE 给每个 item 生成 Semantic ID，再用自回归解码用户的 Semantic ID 序列来做召回。*
 """
 +++
 
-*读 TIGER（生成式推荐的经典论文）——用 RQ-VAE 给每个 item 生成 Semantic ID，再用自回归解码用户的 Semantic ID 序列来做召回。*
+*用 RQ-VAE 给每个 item 生成 Semantic ID，再用自回归解码用户的 Semantic ID 序列来做召回。*
 
 论文：**[Recommender Systems with Generative Retrieval](https://arxiv.org/abs/2305.05065)**（Rajput et al., NeurIPS 2023）
 
