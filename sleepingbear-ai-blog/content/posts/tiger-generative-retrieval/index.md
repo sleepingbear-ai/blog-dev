@@ -15,7 +15,7 @@ summary = """
 
 ## TL;DR
 
-传统推荐把 user 和 item 用 Two-Tower 神经网络嵌到同一个语义空间，再靠 ANN（Approximate Nearest Neighbor，近似最近邻）检索来召回。**TIGER**（*Transformer Index for GEnerative Recommenders*）换了个思路：给每个 item 一个 **Semantic ID**（一串短短的 codeword 元组），把用户历史建模成这些 ID 组成的序列，然后训一个 seq2seq Transformer 去**生成**下一个 item 的 Semantic ID。
+传统推荐把 user 和 item 用 Two-Tower 神经网络嵌到同一个语义空间，再靠 ANN（Approximate Nearest Neighbor）检索来召回。**TIGER**（*Transformer Index for GEnerative Recommenders*）换了个思路：给每个 item 一个 **Semantic ID**（一串短短的 codeword 元组），把用户历史建模成这些 ID 组成的序列，然后训一个 seq2seq Transformer 去**生成**下一个 item 的 Semantic ID。
 
 **召回，就此变成了 next-Semantic-ID 预测**——和 LLM 的 next-token 预测如出一辙。这也就意味着，LLM 那套建模方法和 **Scaling Law** 策略，有机会搬到生成式推荐系统上来。
 
