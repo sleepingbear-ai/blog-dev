@@ -77,7 +77,7 @@ TIGER 对召回换了条路，分两个阶段。**Stage 1** 把每个 item 变�
 
 ### Stage 1 —— 内容 embedding → Semantic ID（靠 RQ-VAE）
 
-把 item 的文本特征（标题、品牌、类目、价格、描述）拼起来，过一遍冻结的 **Sentence-T5** encoder，得到一个 768 维 embedding，再用 **RQ-VAE**（Residual-Quantized VAE，残差量化 VAE）把它量化掉。RQ-VAE 本质是个 autoencoder，只不过瓶颈层换成了一摞向量量化器——每层一个——它们一起吐出 Semantic ID：
+把 item 的文本特征（标题、品牌、类目、价格、描述）拼起来，过一遍冻结的 **Sentence-T5** encoder，得到一个 768 维 embedding，再用 **RQ-VAE**（Residual-Quantized VAE）对它做 quantization。RQ-VAE 本质是个 autoencoder，它的 bottleneck 是一摞 vector quantizer——每个层级一个——共同产出 Semantic ID：
 
 ![RQ-VAE 架构：DNN encoder 把 item embedding 映射成一个 latent，residual quantizer 从三个 codebook 里各挑一个 codeword（这里得到 Semantic code 7, 1, 4），DNN decoder 再从这些 codeword 向量的和里重建出 embedding。](rqvae.png)
 
@@ -94,7 +94,7 @@ Level 2（细）： C2 里最近的是 index 4， C2[4] = [-0.02, 0.02]  → c2 
                 r3 = r2 − C2[4] ≈ [0, 0]
 ```
 
-挑出来的这几个 index 就是 **Semantic ID =（7, 1, 4）**。把选中的 codeword 向量加起来，就得到量化后的表示，它能重建出原来的 latent——`C0[7] + C1[1] + C2[4] = [0.90, 0.60] = r0`——**DNN decoder** 再把它映射回 item embedding。
+挑出来的这几个 index 就是 **Semantic ID =（7, 1, 4）**。把选中的 codeword 向量加起来，就得到 quantization 之后的表示，它能重建出原来的 latent——`C0[7] + C1[1] + C2[4] = [0.90, 0.60] = r0`——**DNN decoder** 再把它映射回 item embedding。
 
 图里为了好懂，用的是 size 为 8 的迷你 codebook；论文里每个 codebook 有 **256** 个 entry。此外还会**再拼上第 4 个 codeword**，用来区分那些前三位恰好撞车的 item。所以每个 item 最终是一个**长度为 4 的元组**——这也是为什么 Stage 2 里，一个 item 就是 4 个 token。
 
@@ -109,7 +109,7 @@ L = ‖x − x̂‖²  +  Σ_d ( ‖sg[r_d] − e_cd‖²  +  β·‖r_d − sg[
 sg[·] = stop-gradient（反向传播时当常数）；e_cd = 第 d 层选中的 codeword
 ```
 
-1. **Reconstruction loss（重建损失）** `‖x − x̂‖²` —— 把 decoder 的输出 `x̂` 往原始 embedding `x` 上拉。这个 loss 让模型尽量减小 RQ-VAE 量化带来的信息损失。
+1. **Reconstruction loss（重建损失）** `‖x − x̂‖²` —— 把 decoder 的输出 `x̂` 往原始 embedding `x` 上拉。这个 loss 让模型尽量减小 RQ-VAE quantization 带来的信息损失。
 
 2. **Codebook loss** `‖sg[r_d] − e_cd‖²` —— 把选中的 *codeword* 往它该代表的那个残差上挪。stop-gradient 把残差冻住，所以只有 codebook 向量在动——真正学出 codebook 的，就是这一项。
 
