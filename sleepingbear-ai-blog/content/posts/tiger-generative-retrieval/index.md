@@ -193,6 +193,6 @@ Decoder 先预测 `c0`，把它喂回去预测 `c1`，依此类推——和 LLM 
 
 ---
 
-#ai #推荐系统 #generativeretrieval #semanticid #rqvae #llm #人工智能 #ai学习 #大模型
+#ai #推荐系统 #生成式推荐 #generativeretrieval #semanticid #rqvae #llm #人工智能 #ai学习 #大模型
 
 If you like this post, consider star [the repo](https://github.com/sleepingbear-ai/sleepingbear-ai.github.io).
