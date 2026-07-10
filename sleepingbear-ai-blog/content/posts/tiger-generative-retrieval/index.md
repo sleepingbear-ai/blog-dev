@@ -36,8 +36,6 @@ TIGER 针对的是**召回**这一段，任务是 *sequential recommendation*（
 
 ```
 用户历史 ─► [ User Tower ] ─► user emb ─► 搜索 ANN Index ─► top-K 最近邻 item
-                                          （基于全量 item emb
-                                            预先建好）
 ```
 
 两个痛点：
