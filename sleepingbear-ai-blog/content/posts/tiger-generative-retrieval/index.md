@@ -142,7 +142,7 @@ Decoder 先预测 `c0`，把它喂回去预测 `c1`，依此类推——和 LLM 
 
 在 Amazon Review 数据集的三个类目（Beauty、Sports、Toys）上评测。
 
-结论概括：**TIGER 在三个数据集、Recall@K 和 NDCG@K 两个指标上全面胜出**，最大的提升出现在 Beauty 上，**NDCG@5 比 SASRec 高约 +29%**，**Recall@5 比 S³-Rec 高约 +17%**。不过更值得关注的是两点：
+结论概括：**TIGER 在三个数据集、Recall@K 和 NDCG@K 两个指标上全面胜出**，最大的提升出现在 Beauty 上，**NDCG@5 比 SASRec 高约 +29%**，**Recall@5 比 S³-Rec 高约 +17%**。更值得关注的是两点：
 
 - **真正起作用的是 ID 的生成方式。** RQ-VAE 生成的 Semantic ID，明显优于基于 LSH（Locality Sensitive Hash）生成的 Semantic ID。
 - **冷启动和推荐多样性（Diversity）都变好了。** 新 item 可以借助与老 item 共享的 ID 前缀被召回；而基于 temperature 的解码，则能用一点精度换来更多样的推荐。
@@ -153,15 +153,15 @@ Decoder 先预测 `c0`，把它喂回去预测 `c1`，依此类推——和 LLM 
 
 * **ID 词表空间极小**
 
-  论文里，长度为 4、每个 codebook 256 个 entry 的 Semantic ID，只需要 `4 × 256 = 1024` 个 codeword embedding，却能表示多达 `256⁴ ≈ 43 亿` 个不同的 item。传统的原子 ID 模型则要给每个 item ID 存一个 embedding（百万到十亿量级）——Semantic ID 用大约 1k 个共享 embedding，替掉了那张巨大的表（其实际体积还得靠 hash 分桶压缩），基本上解决了"ID 空间过大"的问题。
+  论文里，长度为 4、每个 codebook 256 个 entry 的 Semantic ID，只需要 `4 × 256 = 1024` 个 codeword embedding，却能表示多达 `256⁴ ≈ 43 亿` 个不同的 item。传统的原子 ID 模型则要给每个 item ID 存一个 embedding（百万到十亿量级）——Semantic ID 用大约 1k 个共享 embedding，基本上解决了"ID 空间过大"的问题。
 
 * **Item ID 有语义，而且有层次**
 
-  这对召回的多样性有帮助：可以在不同的层级上，用不同 temperature 做采样。
+  这对召回的多样性有帮助：可以在不同的 Semantic ID 层级上，用不同 temperature 做采样。
 
 * **改善冷启动**
 
-  新 item 可以跟着 Semantic ID 相近的老 item 一起被召回。注意这里有个隐含前提：Semantic ID 必须是对***基于内容的***（而非基于交互的）embedding 跑 RQ-VAE 得到的。
+  新 item 可以跟着 Semantic ID 相近的老 item 一起被召回。注意这里有个隐含前提：Semantic ID 必须是对***基于内容的***（而非基于交互的）embedding 跑 RQ-VAE Inference 得到的。
 
 * **打开了 LLM 式 Scaling 的大门**
 
@@ -169,27 +169,27 @@ Decoder 先预测 `c0`，把它喂回去预测 `c1`，依此类推——和 LLM 
 
 ### TIGER 的短板
 
-* **基础设施成本**
+* **Infrastructure 成本**
 
-  传统的 Two-Tower embedding 召回，线上只需要跑一次 User Tower 推理，再做一次 ANN 检索；效率极高，轻松扩到十亿级 item 库。相比之下，TIGER 要做自回归解码 + beam search，推理开销可能大得多。
+  传统的 Two-Tower embedding 召回，线上只需要跑一次 User Tower 推理，再做一次 ANN 检索；效率极高，轻松扩到十亿级 item 库。相比之下，TIGER 要做自回归解码 + beam search，开销可能大得多。
 
 * **复杂度**
 
-  TIGER 多引入了 RQ-VAE 的模型训练，以及一整套 Semantic ID 的生成流程。如果一个推荐系统本身已经在大量使用基于内容的 embedding 和层次化特征（比如类目），那 TIGER 的增量收益会明显变小，可能撑不起它带来的额外复杂度。
+  TIGER 多引入了 RQ-VAE 的模型训练，以及一整套 Semantic ID 的生成流程。如果一个推荐系统本身已经在大量使用基于内容（Content）的 embedding 和层次化特征（比如类目），那 TIGER 的增量收益会明显变小，可能撑不起它带来的额外复杂度。
 
 * **召回天然是多路的**
 
-  实践中，召回是个多通道的活儿，候选来自很多条不同的链路。比如 Amazon 的推荐，可以从用户的历史订单、浏览记录、热门 / 趋势商品、折扣商品、新品……等等多个通道里捞候选。指望用 TIGER 一把替掉所有通道，并不现实。更实际的做法，是把 TIGER 当作众多召回通道中的**一路**，尤其用来召回新品、改善冷启动。
+  实践中，召回是个多通道（Multi-Channel）的活儿，候选来自很多条不同的链路。比如 Amazon 的推荐，可以从用户的历史订单、浏览记录、热门 / 趋势商品、折扣商品、新品……等等多个通道里捞候选。指望用 TIGER 一把替掉所有通道，并不现实。更实际的做法，是把 TIGER 当作众多召回通道中的**一路**，尤其用来召回新品、改善冷启动。
 
 ### 更大的图景
 
 * **这篇论文为什么重要**
 
-  它是最早把生成式召回真正做到有竞争力的论文之一，也是第一个用**学出来的、带语义的** item ID 去替代随机原子 ID 的工作。这一步重新定义了召回——召回即 next-token 生成——顺带还改善了冷启动。
+  它是最早把生成式召回真正做到有竞争力的论文之一，也是第一个用**ML 学出来的、带语义的** item ID 去替代随机原子 ID 的工作。这一步重新定义了召回——召回即 next-token 生成——顺带还改善了冷启动。
 
 * **行业趋势**
 
-  Semantic ID 是那一层 tokenization，它让生成式模型得以在 item 上做推理。"item 即 token、召回即生成"这个方向，为把 LLM 的建模方法和 **Scaling Law** 策略搬进推荐系统打开了大门，这显然是整个行业正在奔去的地方。随着推理成本一天比一天低，把推荐模型和推荐系统 scale up，就是未来。
+  Semantic ID 成为了推荐系统的 tokenization 层，"item 即 token、召回即生成"这个方向，为把 LLM 的建模方法和 **Scaling Law** 策略搬进推荐系统打开了大门，开辟了生成式推荐这一新思路。目前这是整个推荐系统行业正在努力探索的新方向。虽然生成式推荐目前的实践中仍有争议，面临 Infrastructure 成本以及如何融合传统推荐系统等现实问题，但随着模型推理成本一天比一天低，把推荐模型和推荐系统 scale up，应该是未来！
 
 ---
 
