@@ -71,7 +71,7 @@ Level 2（细）： C2 里最近的是 index 4， C2[4] = [-0.02, 0.02]  → c2 
 
 #### 训练 RQ-VAE：三个 Loss Functions
 
-encoder、decoder 和所有 codebook 是联合训练的。麻烦在于：挑最近的 codeword（`argmin`）这一步**不可求导**，梯度没法正常穿过去。RQ-VAE 的办法是用 *straight-through estimator*，配上三个 loss（后两个对每一层 `d` 求和）：
+encoder、decoder 和所有 codebook 是联合训练的。麻烦在于：挑最近的 codeword（`argmin`）这一步**不可求导**，梯度没法正常穿过去。RQ-VAE 的办法是用 *straight-through estimator*，配上三个 loss：
 
 ```
 L = ‖x − x̂‖²  +  Σ_d ( ‖sg[r_d] − e_cd‖²  +  β·‖r_d − sg[e_cd]‖² )
@@ -109,13 +109,13 @@ sg[·] = stop-gradient（反向传播时当常数）；e_cd = 第 d 层选中的
       beam search ─► top-K Semantic ID ─► 查表 ─► top-K item
 ```
 
-Decoder 先预测 `c0`，把它喂回去预测 `c1`，依此类推——和 LLM 生成 token 一模一样，只不过这里的"token"是 codeword，而一整个 item 不过就是 4 个。线上服务时用 **beam search** 拿到 top-K 个最可能的 Semantic ID，再通过查表映射回 item。**召回 = Decoder 生成。**
+Decoder 先预测 `c0`，把它喂回去预测 `c1`，依此类推——和 LLM 生成 token 一模一样，只不过这里的"token"是 codeword，而一整个 item 不过就是 4 个。线上服务时用 **beam search** 拿到 top-K 个最可能的 Semantic ID，再通过查表映射回 item。传统的 ANN Index 不再需要，**召回 = Decoder 生成。**
 
 ## 实验与结果
 
 在 Amazon Review 数据集的三个类目（Beauty、Sports、Toys）上评测。
 
-结论概括：**TIGER 在三个数据集、Recall@K 和 NDCG@K 两个指标上全面胜出**，最大的提升出现在 Beauty 上，**NDCG@5 比 SASRec 高约 +29%**，**Recall@5 比 S³-Rec 高约 +17%**。更值得关注的是两点：
+**TIGER 在三个数据集、Recall@K 和 NDCG@K 两个指标上全面胜出**，最大的提升出现在 Beauty 上，**NDCG@5 比 SASRec 高约 +29%**，**Recall@5 比 S³-Rec 高约 +17%**。更值得关注的是两点：
 
 - **真正起作用的是 ID 的生成方式。** RQ-VAE 生成的 Semantic ID，明显优于基于 LSH（Locality Sensitive Hash）生成的 Semantic ID。
 - **冷启动和推荐多样性（Diversity）都变好了。** 新 item 可以借助与老 item 共享的 ID 前缀被召回；而基于 temperature 的解码，则能用一点精度换来更多样的推荐。
