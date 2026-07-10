@@ -26,36 +26,11 @@ summary = """
 - **召回（Retrieval / candidate generation）：** 从全量 item 里飞快地筛出几百上千个用户可能喜欢的候选。
 - **排序（Ranking）：** 上一个更重、更准的模型，给这些候选打分排序，产出最终列表。
 
-```
-                    ┌──────────────────────┐
-   Item 全库    ──► │   召回（快）         │ ──► 几百个 ──► ┌──────────────────┐
-  （百万～十亿）    │  candidate generation│      候选      │  排序（重）      │ ──► 最终
-                    └──────────────────────┘                └──────────────────┘     top-N
-```
-
 TIGER 针对的是**召回**这一段，任务是 *sequential recommendation*（序列推荐）：给定用户按时间排好的交互历史 `[item_1, …, item_n]`，返回最可能是 `item_{n+1}` 的 top-K 候选。
 
 **传统解法：Two-Tower embedding + ANN 检索**
 
-*Two-Tower* 模型有两座塔（两个神经网络），一座给 user，一座给 item。每座塔把自己那侧的特征编码成一个 embedding，落在**同一个共享空间**里，匹配分数就是两个 embedding 的点积（cosine 相似度）。训练目标是让真实发生过交互的 user–item 得分高。
-
-```
-                       匹配分数 = sim(user_emb, item_emb)
-                                          ▲
-                        ┌─────────────────┴─────────────────┐
-                        │              点积                 │
-                        └─────────────────┬─────────────────┘
-                 user_emb                 │                 item_emb
-                    ▲                     │                    ▲
-              ┌───────────┐                            ┌───────────┐
-              │ User Tower│      （共享 embedding      │ Item Tower│
-              │   (MLP)   │           空间）           │   (MLP)   │
-              └───────────┘                            └───────────┘
-                    ▲                                        ▲
-             user 特征：                              item 特征：
-        历史 item ID 序列、                       item ID、类目、
-        user ID / 画像、上下文                    品牌、文本、价格 …
-```
+*Two-Tower* 模型有两座塔（两个神经网络），一座给 user，一座给 item。每座塔把自己那侧的特征编码成一个 embedding，落在**同一个共享空间**里，匹配分数就是两个 embedding 的点积（cosine 相似度）。训练目标是让真实发生过交互的 user–item 对得分高。
 
 线上服务时，两座塔是拆开用的：所有 **item** embedding 离线算好，灌进 ANN Index；**user** embedding 实时算出来，拿去搜索这个 Index，取最近邻的那些 item。
 
@@ -67,7 +42,7 @@ TIGER 针对的是**召回**这一段，任务是 *sequential recommendation*（
 
 两个痛点：
 
-- **Item ID 是随机的、没有语义。** ID 空间可能极其巨大（比如 Amazon 是十亿量级），这让 embedding 模型很难训练。工程上一般要靠 hash 分桶来压缩 ID 空间，于是又要在模型精度和模型大小之间做权衡。
+- **原子 Item ID 是随机的、没有语义。** ID 空间可能极其巨大（比如 Amazon 是十亿量级），这让 embedding 模型很难训练。工程上一般要靠 hash 分桶来压缩 ID 空间，于是又要在模型精度和模型大小之间做权衡。
 
 - **冷启动（Cold Start）问题。** 新 item 的 embedding 是随机初始化的，在它积累够用户交互之前，很难被召回。
 
@@ -83,7 +58,7 @@ TIGER 对召回换了条路，分两个阶段。**Stage 1** 把每个 item 变�
 
 *RQ-VAE 架构（[论文](https://arxiv.org/abs/2305.05065) Figure 3）。*
 
-举例：假设 **DNN encoder** 把一个 item 的 embedding 映射成 latent `r0 = [0.90, 0.60]`（这里用 2 维是为了简洁）。接着 **residual quantizer** 一层一层来，每层挑出最近的那个 codebook 向量（`c_d = argmin_i ‖r_d − C_d[i]‖`），把剩下的残差 residual（`r_{d+1} = r_d − C_d[c_d]`）交给下一层：
+举例：假设 **DNN encoder** 把一个 item 的 embedding 映射成 latent `r0 = [0.90, 0.60]`（这里用 2 维是为了简洁）。接着 **residual quantizer** 一层一层来，每层挑出最近的那个 codebook 向量（`c_d = argmin_i ‖r_d − C_d[i]‖`），把剩下的残差（`r_{d+1} = r_d − C_d[c_d]`）交给下一层：
 
 ```
 Level 0（粗）： C0 里最近的是 index 7， C0[7] = [0.80, 0.50]   → c0 = 7
@@ -98,7 +73,7 @@ Level 2（细）： C2 里最近的是 index 4， C2[4] = [-0.02, 0.02]  → c2 
 
 #### 训练 RQ-VAE：三个 Loss Functions
 
-encoder、decoder 和所有 codebook 是联合训练的。麻烦在于：挑最近的 codeword（`argmin`）这一步**不可求导**，梯度没法正常穿过去。RQ-VAE 的办法是用 *straight-through estimator*，配上三个 loss（对每一层 `d` 求和）：
+encoder、decoder 和所有 codebook 是联合训练的。麻烦在于：挑最近的 codeword（`argmin`）这一步**不可求导**，梯度没法正常穿过去。RQ-VAE 的办法是用 *straight-through estimator*，配上三个 loss（后两个对每一层 `d` 求和）：
 
 ```
 L = ‖x − x̂‖²  +  Σ_d ( ‖sg[r_d] − e_cd‖²  +  β·‖r_d − sg[e_cd]‖² )
@@ -161,11 +136,7 @@ Decoder 先预测 `c0`，把它喂回去预测 `c1`，依此类推——和 LLM 
 
 * **改善冷启动**
 
-  新 item 可以跟着 Semantic ID 相近的老 item 一起被召回。注意这里有个隐含前提：Semantic ID 必须是对***基于内容的***（而非基于交互的）embedding 跑 RQ-VAE Inference 得到的。
-
-* **打开了 LLM 式 Scaling 的大门**
-
-  最重要的一点：它把**召回**问题重构成了 seq2seq 的 **Next ID** 预测问题，和 LLM 的 **Next Token** 预测同构——那么"Scaling Law"那套建模策略带来的收益，也就有机会在这里复现。
+  新 item 可以跟着 Semantic ID 相近的老 item 一起被召回。注意这里有个隐含前提：Semantic ID 必须是对***基于内容的***（而非基于交互的）embedding 跑 RQ-VAE inference 得到的。
 
 ### TIGER 的缺点
 
