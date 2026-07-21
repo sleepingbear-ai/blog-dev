@@ -11,7 +11,7 @@ title = 'Multi-Agent Deep Research: 原理和代码'
 Anthropic 的核心思路是 **Orchestrator-Worker**（指挥者—工人）：
 
 - **Lead Agent（指挥者）** —— 拆解问题，把一个大 query 切成几个互不重叠的子任务。
-- **Subagents（工人）** —— 每人领一个子任务，**并行**去搜索，各自有独立的 context window，完成任务后只把**压缩过的 findings** 返回给 Lead Agent，不回传原始搜索结果。
+- **Subagents（工人）** —— 每人领一个子任务，**并行**去搜索，各自有独立的 context window，完成任务后只把**压缩过的 findings** 返回给 Lead Agent。
 - **Synthesis** —— Lead Agent 把各路 findings 汇总成一篇连贯的报告。
 - **Citation** —— 最后统一给报告里的每个论断挂上来源链接。
 
@@ -21,7 +21,7 @@ Anthropic 的核心思路是 **Orchestrator-Worker**（指挥者—工人）：
 - **关注点分离（separation of concerns）**：每个 Subagent 有自己独立的工具、prompt 和 Agentic Loop，这降低了路径依赖，让每条调查更深入、更独立。
 - **突破单 context 上限**：Deep Research 要处理的信息常常超出 Single-Agent 的 context window，多个 Agent 分摊是必要的。
 
-Multi-Agent 有效，主要是因为它能 **"花掉足够多的 token 来解决问题"**。Anthropic 用 Claude Opus 4 当 Lead Agent、Claude Sonnet 4 当 Subagent 的系统，在内部研究评测上比 Single-Agent（用 Opus 4）效果高出 90.2%——代价是 token 消耗大得多，所以这套架构只适合**高价值、可并行、超出单 context** 的任务。
+Multi-Agent 有效，主要是因为它能 **"花掉足够多的 token 来解决问题"**。Anthropic 用 Claude Opus 4 为 Lead Agent、Claude Sonnet 4 为 Subagent 的系统，在内部研究评测上比 Single-Agent（用 Opus 4）效果高出 90.2%——代价是 token 消耗大得多，所以这套架构只适合**高价值、可并行、超出单 context** 的任务。
 
 ## 代码架构图
 
@@ -188,8 +188,6 @@ if __name__ == "__main__":
 
 ## 代码讲解
 
-代码的几个要点：
-
 - **Lead 在 `research()` 里指挥全局** —— 三次 LLM call，每次配一个 prompt。`PLANNER_SYSTEM` 把 query 变成一个 JSON 的子任务列表，数量上限是 `MAX_NUM_AGENTS`：
 
     ```python
@@ -224,13 +222,13 @@ if __name__ == "__main__":
     )
     ```
 
-    prompt 中 "refining queries until you can answer well" 是 loop 能一直迭代下去的原因；"write condensed findings" 要求 Subagent 返回的是**压缩后的结论**；`{output_format}` 则是 Lead 指定的输出格式。
+    prompt 中 "refining queries until you can answer well" 是 loop 能一直迭代下去的原因；"write condensed findings" 要求 Subagent 返回的是**压缩后的结论**。
 
 - **Prompt 驱动的协调。** 从上面的 prompt 就能看出来：分工、输出格式、Agent 之间的接口，全都写在 prompt 里。
 
 - **Sources 向上汇聚。** 每个 Subagent 把搜到的 URL 存在自己的 `self.sources` 里；Lead 收集起来去重成一个 set，再交给 LLM 生成引用。
 
-- **LLM 能灵活配置选择。** 所有模型调用都走同一个 `llm()` helper（LiteLLM），Lead 和 Subagent 可以用不同的模型（`LEAD_MODEL`、`SUBAGENT_MODEL`）；两个参数 —— `MAX_NUM_AGENTS` 和 `MAX_AGENT_LOOP_TIMES` —— 控制 Deep Research 的**宽度**和**深度**。一般来说，`LEAD_MODEL` 用强一点的模型、`SUBAGENT_MODEL` 用便宜的模型，性价比最高。
+- **LLM 能灵活配置选择。** 所有模型调用都用同一个 `llm()` helper（LiteLLM），Lead 和 Subagent 可以用不同的模型（`LEAD_MODEL`、`SUBAGENT_MODEL`）；参数 `MAX_NUM_AGENTS` 和 `MAX_AGENT_LOOP_TIMES` 控制 Deep Research 的**宽度**和**深度**。一般来说，`LEAD_MODEL` 用强一点的模型、`SUBAGENT_MODEL` 用便宜的模型，性价比最高。
 
 ## 运行演示
 
