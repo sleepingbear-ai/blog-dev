@@ -23,8 +23,6 @@ Anthropic 的核心思路是 **Orchestrator-Worker**（指挥者—工人）：
 
 Multi-Agent 有效，主要是因为它能 **"花掉足够多的 token 来解决问题"**。Anthropic 用 Claude Opus 4 当 Lead Agent、Claude Sonnet 4 当 Subagent 的系统，在内部研究评测上比 Single-Agent（用 Opus 4）高出 90.2%。代价也很直接：这类系统大约烧 **15 倍**于普通 chat 的 token（Single-Agent 约 4 倍），所以它只适合**高价值、可并行、超出单 context** 的任务。
 
-还有一个很重要的设计原则：**协调逻辑写在 Prompt 里，不写在代码里**。谁干什么、干到什么程度、输出什么格式，全靠 Prompt 表达。这也是为什么实现能压到 139 行。
-
 ## 代码架构图
 
 ```mermaid
