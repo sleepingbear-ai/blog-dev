@@ -19,9 +19,9 @@ Anthropic 的核心思路是 **Orchestrator-Worker**（指挥者—工人）：
 
 - **并行探索**：多个 Subagent 同时进行，各自用独立的 context window，探索问题的不同侧面。
 - **关注点分离（separation of concerns）**：每个 Subagent 有自己独立的工具、prompt 和 Agentic Loop，这降低了路径依赖，让每条调查更深入、更独立。
-- **突破单 context 上限**：Deep Research 要处理的信息常常超出 Single-Agent 的 context window，多个 Agent 分摊就可以。
+- **突破单 context 上限**：Deep Research 要处理的信息常常超出 Single-Agent 的 context window，多个 Agent 分摊是必要的。
 
-Multi-Agent 有效，主要是因为它能 **"花掉足够多的 token 来解决问题"**。Anthropic 用 Claude Opus 4 当 Lead Agent、Claude Sonnet 4 当 Subagent 的系统，在内部研究评测上比 Single-Agent（用 Opus 4）高出 90.2%。代价也很直接：这类系统大约烧 **15 倍**于普通 chat 的 token（Single-Agent 约 4 倍），所以它只适合**高价值、可并行、超出单 context** 的任务。
+Multi-Agent 有效，主要是因为它能 **"花掉足够多的 token 来解决问题"**。Anthropic 用 Claude Opus 4 当 Lead Agent、Claude Sonnet 4 当 Subagent 的系统，在内部研究评测上比 Single-Agent（用 Opus 4）效果高出 90.2%——代价是 token 消耗大得多，所以这套架构只适合**高价值、可并行、超出单 context** 的任务。
 
 ## 代码架构图
 
