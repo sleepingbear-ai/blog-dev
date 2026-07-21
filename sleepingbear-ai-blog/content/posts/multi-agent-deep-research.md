@@ -234,9 +234,7 @@ if __name__ == "__main__":
 
 ## 运行演示
 
-用中文 query 跑一次：`"巴黎旅行攻略 几天合适"`（完整 notebook：[deep_research.demo2.ipynb](https://github.com/tiejun-ai/deep_research/blob/main/deep_research.demo2.ipynb)，可以直接在 Colab 打开）。
-
-先看日志。Lead 把问题拆成了三个不重叠的角度 —— **需要几天**、**有哪些景点**、**不同天数怎么安排**：
+用中文 query：`"巴黎旅行攻略 几天合适"`， Lead 把问题拆成了三个不重叠的角度 —— **需要几天**、**有哪些景点**、**不同天数怎么安排**：
 
 ```
 [       lead] query    text='巴黎旅行攻略 几天合适'
@@ -268,7 +266,6 @@ if __name__ == "__main__":
 
 几个值得注意的点：
 
-- 三个 `search` 日志是**交错**出现的 —— 这就是并行的证据。
 - 用户问的是中文，Subagent 自己判断出**英文 query 搜得到更多资料**，全部转成了英文搜索。
 - 每个 Subagent 都搜了不止一轮，第二轮的 query 是根据第一轮结果**refine** 过的。
 - 一共收集了 **28 个来源**，但进入 Lead context 的只是三段压缩后的 findings。
@@ -305,14 +302,12 @@ if __name__ == "__main__":
 >
 > 5 天行程适合首次来访者，行程宽裕且丰富([dangerous-business.com](https://www.dangerous-business.com/5-days-in-paris))。
 
-报告的结构 —— 先给结论、再列景点表格、再给三档行程 —— 正好对应 Lead 拆出的三个子任务。这就是 Multi-Agent 的价值：**问题的结构决定了报告的结构**，而不是让一个 Agent 顺着一条线往下想。
-
 ## 小结
 
 - **Orchestrator-Worker 是 Deep Research 的标准架构**：Lead 拆解 + Subagent 并行 + 压缩回传 + 统一引用。
-- **协调逻辑放在 Prompt 里**，代码只负责跑 loop、开线程、截断预算 —— 所以 139 行就够了。
+- **协调逻辑放在 Prompt 里**。
 - **Context 隔离比并行更重要**。Subagent 返回压缩后的 findings 而不是原始搜索结果，这才是突破单 context 上限的关键。
-- **Token 是有代价的**。`MAX_NUM_AGENTS` 和 `MAX_AGENT_LOOP_TIMES` 这两个参数要根据 query 的价值来调，不是越大越好。
+- **Token 是有代价的**。`MAX_NUM_AGENTS` 和 `MAX_AGENT_LOOP_TIMES` 这两个参数要根据 query 的价值来调。
 
 代码：[github.com/tiejun-ai/deep_research](https://github.com/tiejun-ai/deep_research) —— 欢迎 star。
 
