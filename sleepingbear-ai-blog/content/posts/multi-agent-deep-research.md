@@ -6,7 +6,7 @@ title = 'Multi-Agent Deep Research: 原理和代码'
 
 之前写过一篇 [Anthropic Deep Research: Multi-Agent 架构](/posts/anthropic-multi-agent-research/)，讲 Anthropic 是怎么用 Multi-Agent 做 Deep Research 的。我按照那套架构写了一份实现：**139 行 Python**，是一个能并行搜索、带引用的 Deep Research。
 
-## 一、原理：Orchestrator-Worker
+## 原理：Orchestrator-Worker
 
 Anthropic 的核心思路是 **Orchestrator-Worker**（指挥者—工人）：
 
@@ -25,7 +25,7 @@ Multi-Agent 有效，主要是因为它能 **"花掉足够多的 token 来解决
 
 还有一个很重要的设计原则：**协调逻辑写在 Prompt 里，不写在代码里**。谁干什么、干到什么程度、输出什么格式，全靠 Prompt 表达。这也是为什么实现能压到 139 行。
 
-## 二、代码架构图
+## 代码架构图
 
 ```mermaid
 flowchart TD
@@ -44,7 +44,7 @@ flowchart TD
 
 三个 Subagent 各自跑一个独立的 Agent Loop（调 LLM → 决定搜什么 → 搜 → 再判断），互不干扰。
 
-## 三、完整代码
+## 完整代码
 
 ```python
 """Multi-Agent Deep Research (minimal). Deps: litellm tavily-python."""
@@ -188,7 +188,7 @@ if __name__ == "__main__":
     print(research("Best practices for prompt engineering?"))
 ```
 
-## 四、代码讲解
+## 代码讲解
 
 ### 1. 一个 `Agent` Class，Lead 和 Subagent 共用
 
@@ -229,7 +229,7 @@ Multi-Agent 烧 token 是真的，这两个参数直接决定成本和延迟。�
 
 合成报告和挂引用**分成两次 LLM call**。合成的时候只管把内容写连贯，引用的时候只管把 URL 对应上。一次让模型同时干两件事，两件都做不好。
 
-## 五、运行 Demo
+## 运行 Demo
 
 用中文 query 跑一次：`"巴黎旅行攻略 几天合适"`（完整 notebook：[deep_research.demo2.ipynb](https://github.com/tiejun-ai/deep_research/blob/main/deep_research.demo2.ipynb)，可以直接在 Colab 打开）。
 
