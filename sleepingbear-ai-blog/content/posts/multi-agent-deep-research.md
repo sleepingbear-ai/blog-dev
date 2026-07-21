@@ -230,9 +230,9 @@ if __name__ == "__main__":
 
 - **Sources 向上汇聚。** 每个 Subagent 把搜到的 URL 存在自己的 `self.sources` 里；Lead 收集起来去重成一个 set，再交给 LLM 生成引用。
 
-- **模型和参数都能灵活配置。** 所有模型调用都走同一个 `llm()` helper（LiteLLM），Lead 和 Subagent 可以用不同的模型（`LEAD_MODEL`、`SUBAGENT_MODEL`）；两个参数 —— `MAX_NUM_AGENTS` 和 `MAX_AGENT_LOOP_TIMES` —— 控制 Deep Research 的**宽度**和**深度**。一般来说，`LEAD_MODEL` 用强一点的模型、`SUBAGENT_MODEL` 用便宜的模型，性价比最高。
+- **LLM 能灵活配置选择。** 所有模型调用都走同一个 `llm()` helper（LiteLLM），Lead 和 Subagent 可以用不同的模型（`LEAD_MODEL`、`SUBAGENT_MODEL`）；两个参数 —— `MAX_NUM_AGENTS` 和 `MAX_AGENT_LOOP_TIMES` —— 控制 Deep Research 的**宽度**和**深度**。一般来说，`LEAD_MODEL` 用强一点的模型、`SUBAGENT_MODEL` 用便宜的模型，性价比最高。
 
-## 运行 Demo
+## 运行演示
 
 用中文 query 跑一次：`"巴黎旅行攻略 几天合适"`（完整 notebook：[deep_research.demo2.ipynb](https://github.com/tiejun-ai/deep_research/blob/main/deep_research.demo2.ipynb)，可以直接在 Colab 打开）。
 
