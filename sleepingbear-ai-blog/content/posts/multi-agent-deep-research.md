@@ -302,9 +302,6 @@ if __name__ == "__main__":
 >
 > 5 天行程适合首次来访者，行程宽裕且丰富([dangerous-business.com](https://www.dangerous-business.com/5-days-in-paris))。
 
-
-代码：[github.com/tiejun-ai/deep_research](https://github.com/tiejun-ai/deep_research) —— 欢迎 star。
-
 ---
 
 #ai #aiagents #multiagent #deepresearch #llm #aisearch #tooluse #aicoding #claude #anthropic #人工智能 #ai学习 #ai编程 #多智能体 #大模型
