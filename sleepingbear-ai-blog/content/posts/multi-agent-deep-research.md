@@ -204,15 +204,15 @@ if __name__ == "__main__":
 
     比如 query *巴黎旅行攻略 几天合适*，会被拆成三个 objective：
 
-    1. "研究一次典型的巴黎行程到底需要几天……"
-    2. "找出巴黎有哪些主要景点、它们如何影响停留时长……"
-    3. "针对 3 天 / 5 天 / 7 天分别给出行程建议……"
+    1. "研究一次典型的巴黎行程到底需要几天"
+    2. "找出巴黎有哪些主要景点、它们如何影响停留时长"
+    3. "针对 3 天 / 5 天 / 7 天分别给出行程建议"
 
-    每个 objective 创建一个 Subagent —— 这里是三个 —— 因为谁都不依赖别人的输出，它们通过 `ThreadPoolExecutor` fan out，**并行**跑。之后用 `SYNTH_SYSTEM` 做一次 LLM call 把各路 findings 合成最终报告，再用 `CITATION_SYSTEM` 做一次 LLM call 处理引用。
+    每个 objective 创建一个 Subagent —— 这里是三个 —— 因为谁都不依赖别人的输出，它们通过 `ThreadPoolExecutor` fan out，**并行**跑。之后用 prompt `SYNTH_SYSTEM` 做一次 LLM call 把各 Subagent 的 findings 合成最终报告，再用 prompt `CITATION_SYSTEM` 做一次 LLM call 处理引用。
 
-- **`Agent.run(task)` 是一个标准的 Agentic Search Loop** —— 拿到 Lead 分配的 objective（`task`），带着 `web_search` 工具调 LLM，LLM 要搜就去搜，把结果喂回去，如此反复，直到信息够了能作答，或者用满 `MAX_AGENT_LOOP_TIMES` 轮。
+- **`Agent.run(task)` 是一个标准的 Agentic Search Loop** —— 拿到 Lead 分配的 objective（`task`），带着 `web_search` 工具调 LLM，LLM 决定要搜就去搜，把结果喂回给 LLM，如此反复，直到 LLM 收集到足够信息能作答，或者用满 `MAX_AGENT_LOOP_TIMES` 轮。
 
-    这个 loop 由 `SUBAGENT_SYSTEM` 驱动：
+    这个 loop 由 prompt `SUBAGENT_SYSTEM` 驱动：
 
     ```python
     SUBAGENT_SYSTEM = (
@@ -224,13 +224,13 @@ if __name__ == "__main__":
     )
     ```
 
-    每一行都定义了一个行为："refining queries until you can answer well" 是 loop 能一直迭代下去的原因；"write condensed findings" 要求 Subagent 返回的是**压缩后的结论**而不是原始搜索结果（原始结果留在它自己的 `messages` 里，不会进 Lead 的 context）；`{output_format}` 则是 Lead 在 plan 里指定的格式。
+    prompt 中 "refining queries until you can answer well" 是 loop 能一直迭代下去的原因；"write condensed findings" 要求 Subagent 返回的是**压缩后的结论**而不是原始搜索结果；`{output_format}` 则是 Lead 在 plan 里指定的格式。
 
-- **Prompt 驱动的协调。** 从上面两个 prompt 就能看出来：分工、输出格式、Agent 之间的接口，全都写在 prompt 里，而不是硬编码的规则里。
+- **Prompt 驱动的协调。** 从上面的 prompt 就能看出来：分工、输出格式、Agent 之间的接口，全都写在 prompt 里，而不是硬编码的规则里。
 
-- **Sources 向上汇聚。** 每个 Subagent 把搜到的 URL 攒在自己的 `self.sources` 里；Lead 收集起来去重成一个 set，再交给 LLM 生成引用。
+- **Sources 向上汇聚。** 每个 Subagent 把搜到的 URL 存在自己的 `self.sources` 里；Lead 收集起来去重成一个 set，再交给 LLM 生成引用。
 
-- **Provider 无关，而且可调。** 所有模型调用都走同一个 `llm()` helper（LiteLLM），所以 Lead 和 Subagent 可以用不同的模型（`LEAD_MODEL`、`SUBAGENT_MODEL`）；两个旋钮 —— `MAX_NUM_AGENTS` 和 `MAX_AGENT_LOOP_TIMES` —— 控制研究的**宽度**和**深度**。一般来说，`LEAD_MODEL` 用强一点的模型、`SUBAGENT_MODEL` 用便宜的模型，性价比最高。
+- **模型和参数都能灵活配置。** 所有模型调用都走同一个 `llm()` helper（LiteLLM），Lead 和 Subagent 可以用不同的模型（`LEAD_MODEL`、`SUBAGENT_MODEL`）；两个参数 —— `MAX_NUM_AGENTS` 和 `MAX_AGENT_LOOP_TIMES` —— 控制 Deep Research 的**宽度**和**深度**。一般来说，`LEAD_MODEL` 用强一点的模型、`SUBAGENT_MODEL` 用便宜的模型，性价比最高。
 
 ## 运行 Demo
 
@@ -312,7 +312,7 @@ if __name__ == "__main__":
 - **Orchestrator-Worker 是 Deep Research 的标准架构**：Lead 拆解 + Subagent 并行 + 压缩回传 + 统一引用。
 - **协调逻辑放在 Prompt 里**，代码只负责跑 loop、开线程、截断预算 —— 所以 139 行就够了。
 - **Context 隔离比并行更重要**。Subagent 返回压缩后的 findings 而不是原始搜索结果，这才是突破单 context 上限的关键。
-- **Token 是有代价的**。`MAX_NUM_AGENTS` 和 `MAX_AGENT_LOOP_TIMES` 这两个旋钮要根据 query 的价值来调，不是越大越好。
+- **Token 是有代价的**。`MAX_NUM_AGENTS` 和 `MAX_AGENT_LOOP_TIMES` 这两个参数要根据 query 的价值来调，不是越大越好。
 
 代码：[github.com/tiejun-ai/deep_research](https://github.com/tiejun-ai/deep_research) —— 欢迎 star。
 
