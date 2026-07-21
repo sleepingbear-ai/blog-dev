@@ -4,7 +4,7 @@ draft = false
 title = 'Multi-Agent Deep Research: 原理和代码'
 +++
 
-之前写过一篇 [Anthropic Deep Research: Multi-Agent 架构](/posts/anthropic-multi-agent-research/)，讲 Anthropic 是怎么用 Multi-Agent 做 Deep Research 的。我按照那套架构写了一份实现：**139 行 Python**，是一个能并行搜索、带引用的 Deep Research。
+之前写过一篇 [Anthropic Deep Research: Multi-Agent 架构](/posts/anthropic-multi-agent-research/)，讲 Anthropic 是怎么用 Multi-Agent 做 Deep Research 的。我按照那套架构用**139 行 Python** 实现了一个能并行搜索、带引用的 Deep Research。
 
 ## 原理：Orchestrator-Worker
 
@@ -188,44 +188,49 @@ if __name__ == "__main__":
 
 ## 代码讲解
 
-### 1. 一个 `Agent` Class，Lead 和 Subagent 共用
+代码的几个要点：
 
-`Agent.run()` 就是一个标准的 Agent Loop：调 LLM（带 `web_search` 工具）→ 返回 `tool_calls` 就去搜、把结果塞回 `messages`、进入下一轮 → 返回纯文本就说明信息够了，直接作答。
+- **Lead 在 `research()` 里指挥全局** —— 三次 LLM call，每次配一个 prompt。`PLANNER_SYSTEM` 把 query 变成一个 JSON 的子任务列表，数量上限是 `MAX_NUM_AGENTS`：
 
-超出 `MAX_AGENT_LOOP_TIMES` 还没收敛，就补一句 `"Stop searching and give your final answer now."` 强制收尾。这一个 Class，Subagent 用，Lead 也能用。
+    ```python
+    PLANNER_SYSTEM = (
+        "You are the lead agent of a multi-agent research system.\n"
+        "Decompose the query into focused, non-overlapping subtasks for parallel subagents.\n"
+        'Respond ONLY with JSON: {"subtasks": [{"objective": "...", "output_format": "..."}]}.'
+    )
+    ```
 
-### 2. Plan：用 JSON mode 拆任务
+    "focused, non-overlapping" 就是全部的分工规则；固定的 JSON 结构则保证这个 plan 能被解析。
 
-```python
-plan = llm(LEAD_MODEL, [...], response_format={"type": "json_object"})
-subtasks = json.loads(plan.content)["subtasks"][:MAX_NUM_AGENTS]
-```
+    比如 query *巴黎旅行攻略 几天合适*，会被拆成三个 objective：
 
-拆解规则全在 `PLANNER_SYSTEM` 里 —— "focused, non-overlapping subtasks"。代码只负责截断到 `MAX_NUM_AGENTS`。注意每个子任务除了 `objective` 还带一个 `output_format`，由 Lead 告诉 Subagent 该怎么组织输出，这就是 Anthropic 说的"教会 Agent 如何委派"。
+    1. "研究一次典型的巴黎行程到底需要几天……"
+    2. "找出巴黎有哪些主要景点、它们如何影响停留时长……"
+    3. "针对 3 天 / 5 天 / 7 天分别给出行程建议……"
 
-### 3. Fan Out：真并行
+    每个 objective 创建一个 Subagent —— 这里是三个 —— 因为谁都不依赖别人的输出，它们通过 `ThreadPoolExecutor` fan out，**并行**跑。之后用 `SYNTH_SYSTEM` 做一次 LLM call 把各路 findings 合成最终报告，再用 `CITATION_SYSTEM` 做一次 LLM call 处理引用。
 
-```python
-with ThreadPoolExecutor(max_workers=MAX_NUM_AGENTS) as ex:
-    results = list(ex.map(lambda p: run_subagent(*p), enumerate(subtasks)))
-```
+- **`Agent.run(task)` 是一个标准的 Agentic Search Loop** —— 拿到 Lead 分配的 objective（`task`），带着 `web_search` 工具调 LLM，LLM 要搜就去搜，把结果喂回去，如此反复，直到信息够了能作答，或者用满 `MAX_AGENT_LOOP_TIMES` 轮。
 
-Web Search 和 LLM call 都是 I/O bound，多线程就够了，不需要 asyncio。三个 Subagent 真的在同时搜。
+    这个 loop 由 `SUBAGENT_SYSTEM` 驱动：
 
-### 4. Context 隔离在哪里
+    ```python
+    SUBAGENT_SYSTEM = (
+        "You are a research subagent. You are given one focused objective.\n"
+        "Use the web_search tool to gather evidence, refining queries until you can answer well.\n"
+        "Then write condensed findings. For every claim, note the source URL inline, e.g. "
+        "(source: https://example.com/page).\n"
+        "Output format requested by the lead: {output_format}"
+    )
+    ```
 
-关键一行是 `run_subagent()` 的返回值：只返回 `findings`（Subagent 自己压缩过的结论）和 `sources`，**原始搜索结果留在 Subagent 自己的 `messages` 里，不会进 Lead 的 context**。这就是"用多个 context window 换更大的信息吞吐"。
+    每一行都定义了一个行为："refining queries until you can answer well" 是 loop 能一直迭代下去的原因；"write condensed findings" 要求 Subagent 返回的是**压缩后的结论**而不是原始搜索结果（原始结果留在它自己的 `messages` 里，不会进 Lead 的 context）；`{output_format}` 则是 Lead 在 plan 里指定的格式。
 
-### 5. 两个成本旋钮
+- **Prompt 驱动的协调。** 从上面两个 prompt 就能看出来：分工、输出格式、Agent 之间的接口，全都写在 prompt 里，而不是硬编码的规则里。
 
-- `MAX_NUM_AGENTS` —— 并行几个 Subagent
-- `MAX_AGENT_LOOP_TIMES` —— 每个 Subagent 最多搜几轮
+- **Sources 向上汇聚。** 每个 Subagent 把搜到的 URL 攒在自己的 `self.sources` 里；Lead 收集起来去重成一个 set，再交给 LLM 生成引用。
 
-Multi-Agent 烧 token 是真的，这两个参数直接决定成本和延迟。默认 3 × 3 在便宜模型上跑一次大约几分钱。
-
-### 6. Citation Pass 单独一轮
-
-合成报告和挂引用**分成两次 LLM call**。合成的时候只管把内容写连贯，引用的时候只管把 URL 对应上。一次让模型同时干两件事，两件都做不好。
+- **Provider 无关，而且可调。** 所有模型调用都走同一个 `llm()` helper（LiteLLM），所以 Lead 和 Subagent 可以用不同的模型（`LEAD_MODEL`、`SUBAGENT_MODEL`）；两个旋钮 —— `MAX_NUM_AGENTS` 和 `MAX_AGENT_LOOP_TIMES` —— 控制研究的**宽度**和**深度**。一般来说，`LEAD_MODEL` 用强一点的模型、`SUBAGENT_MODEL` 用便宜的模型，性价比最高。
 
 ## 运行 Demo
 
