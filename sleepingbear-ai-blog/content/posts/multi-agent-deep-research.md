@@ -4,25 +4,24 @@ draft = false
 title = 'Multi-Agent Deep Research: 原理和代码'
 +++
 
-之前写过一篇 [Anthropic Deep Research: Multi-Agent 架构](/posts/anthropic-multi-agent-research/)，讲 Anthropic 是怎么用 Multi-Agent 做 Deep Research 的。光看架构不过瘾，我按照那套架构写了一份开源实现：**139 行 Python**，跑起来就是一个能并行搜索、带引用的 Deep Research。
-
-代码在这里：[github.com/tiejun-ai/deep_research](https://github.com/tiejun-ai/deep_research)
+之前写过一篇 [Anthropic Deep Research: Multi-Agent 架构](/posts/anthropic-multi-agent-research/)，讲 Anthropic 是怎么用 Multi-Agent 做 Deep Research 的。我按照那套架构写了一份实现：**139 行 Python**，是一个能并行搜索、带引用的 Deep Research。
 
 ## 一、原理：Orchestrator-Worker
 
 Anthropic 的核心思路是 **Orchestrator-Worker**（指挥者—工人）：
 
 - **Lead Agent（指挥者）** —— 拆解问题，把一个大 query 切成几个互不重叠的子任务。
-- **Subagents（工人）** —— 每人领一个子任务，**并行**去搜，各自有独立的 context window。
-- **CitationAgent** —— 最后统一给报告里的每个论断挂上来源链接。
+- **Subagents（工人）** —— 每人领一个子任务，**并行**去搜索，各自有独立的 context window，完成任务后只把**压缩过的 findings** 返回给 Lead Agent，不回传原始搜索结果。
 - **Synthesis** —— Lead Agent 把各路 findings 汇总成一篇连贯的报告。
+- **Citation** —— 最后统一给报告里的每个论断挂上来源链接。
 
-为什么要多个 Agent？两个关键原因：
+为什么要多个 Agent？
 
-1. **并行探索**。开放式问题没有预设路径，多个 Subagent 同时往不同方向挖，比单个 Agent 顺序试快得多。
-2. **Context 隔离**。每个 Subagent 有自己的 context window，返回给 Lead 的是**压缩后的 findings**，不是原始搜索结果。这等于突破了单个 context window 的上限。
+- **并行探索**：多个 Subagent 同时进行，各自用独立的 context window，探索问题的不同侧面。
+- **关注点分离（separation of concerns）**：每个 Subagent 有自己独立的工具、prompt 和 Agentic Loop，这降低了路径依赖，让每条调查更深入、更独立。
+- **突破单 context 上限**：Deep Research 要处理的信息常常超出 Single-Agent 的 context window，多个 Agent 分摊就可以。
 
-代价也很明确：Anthropic 的数据是 Multi-Agent 大约烧 **15 倍** 于普通 chat 的 token（单 Agent 约 4 倍）。所以这套架构只适合**高价值、可并行、超出单 context** 的任务。
+Multi-Agent 有效，主要是因为它能 **"花掉足够多的 token 来解决问题"**。Anthropic 用 Claude Opus 4 当 Lead Agent、Claude Sonnet 4 当 Subagent 的系统，在内部研究评测上比 Single-Agent（用 Opus 4）高出 90.2%。代价也很直接：这类系统大约烧 **15 倍**于普通 chat 的 token（Single-Agent 约 4 倍），所以它只适合**高价值、可并行、超出单 context** 的任务。
 
 还有一个很重要的设计原则：**协调逻辑写在 Prompt 里，不写在代码里**。谁干什么、干到什么程度、输出什么格式，全靠 Prompt 表达。这也是为什么实现能压到 139 行。
 
