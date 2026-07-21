@@ -302,12 +302,6 @@ if __name__ == "__main__":
 >
 > 5 天行程适合首次来访者，行程宽裕且丰富([dangerous-business.com](https://www.dangerous-business.com/5-days-in-paris))。
 
-## 小结
-
-- **Orchestrator-Worker 是 Deep Research 的标准架构**：Lead 拆解 + Subagent 并行 + 压缩回传 + 统一引用。
-- **协调逻辑放在 Prompt 里**。
-- **Context 隔离比并行更重要**。Subagent 返回压缩后的 findings 而不是原始搜索结果，这才是突破单 context 上限的关键。
-- **Token 是有代价的**。`MAX_NUM_AGENTS` 和 `MAX_AGENT_LOOP_TIMES` 这两个参数要根据 query 的价值来调。
 
 代码：[github.com/tiejun-ai/deep_research](https://github.com/tiejun-ai/deep_research) —— 欢迎 star。
 
