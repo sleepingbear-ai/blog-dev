@@ -210,7 +210,7 @@ if __name__ == "__main__":
 
     每个 objective 创建一个 Subagent —— 这里是三个 —— 因为谁都不依赖别人的输出，它们通过 `ThreadPoolExecutor` fan out，**并行**跑。之后用 prompt `SYNTH_SYSTEM` 做一次 LLM call 把各 Subagent 的 findings 合成最终报告，再用 prompt `CITATION_SYSTEM` 做一次 LLM call 处理引用。
 
-- **`Agent.run(task)` 是一个标准的 Agentic Search Loop** —— 拿到 Lead 分配的 objective（`task`），带着 `web_search` 工具调 LLM，LLM 决定要搜就去搜，把结果喂回给 LLM，如此反复，直到 LLM 收集到足够信息能作答，或者用满 `MAX_AGENT_LOOP_TIMES` 轮。
+- **`Agent.run(task)` 是一个标准的 Agentic Search Loop** —— 拿到 Lead 分配的 objective（`task`），带着 `web_search` 工具调 LLM，LLM 决定要搜就去搜，把结果喂回给 LLM，如此反复，直到 LLM 收集到足够信息能作答。
 
     这个 loop 由 prompt `SUBAGENT_SYSTEM` 驱动：
 
@@ -224,9 +224,9 @@ if __name__ == "__main__":
     )
     ```
 
-    prompt 中 "refining queries until you can answer well" 是 loop 能一直迭代下去的原因；"write condensed findings" 要求 Subagent 返回的是**压缩后的结论**而不是原始搜索结果；`{output_format}` 则是 Lead 在 plan 里指定的格式。
+    prompt 中 "refining queries until you can answer well" 是 loop 能一直迭代下去的原因；"write condensed findings" 要求 Subagent 返回的是**压缩后的结论**；`{output_format}` 则是 Lead 指定的输出格式。
 
-- **Prompt 驱动的协调。** 从上面的 prompt 就能看出来：分工、输出格式、Agent 之间的接口，全都写在 prompt 里，而不是硬编码的规则里。
+- **Prompt 驱动的协调。** 从上面的 prompt 就能看出来：分工、输出格式、Agent 之间的接口，全都写在 prompt 里。
 
 - **Sources 向上汇聚。** 每个 Subagent 把搜到的 URL 存在自己的 `self.sources` 里；Lead 收集起来去重成一个 set，再交给 LLM 生成引用。
 
