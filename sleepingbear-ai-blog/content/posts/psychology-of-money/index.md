@@ -6,7 +6,7 @@ title = '《金钱心理学》的6个要点'
 
 ![《金钱心理学》书封](cover.jpg)
 
-《金钱心理学：财富、人性和幸福的永恒真相》（[*The Psychology of Money*](https://book.douban.com/subject/36415996/)，作者 Morgan Housel / 摩根·豪泽尔）是一本讲"钱和人性"的书——它谈的不是怎么选股票，而是怎么和金钱相处。下面是我的读书笔记，6 个要点。
+《金钱心理学：财富、人性和幸福的永恒真相》（[*The Psychology of Money*](https://book.douban.com/subject/36415996/)，作者 [Morgan Housel / 摩根·豪泽尔](https://www.douban.com/personage/36711133/)）是一本讲"钱和人性"的书——它谈的不是怎么选股票，而是怎么和金钱相处。下面是我的读书笔记，6 个要点。
 
 先用一句话总述：
 
