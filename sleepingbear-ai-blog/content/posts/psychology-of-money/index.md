@@ -69,3 +69,5 @@ tags = ['财务自由', '读书', '投资', '定投', '复利', '心理', '金�
 ---
 
 六个要点，其实归到一句话：**活得久、留余地，让时间和复利替你工作。**
+
+如果这篇笔记对你有帮助，请点赞关注[我的小红书笔记](https://www.xiaohongshu.com/discovery/item/696826ed000000001a01fb19?source=webshare&xhsshare=pc_web&xsec_token=ABIGb523jaxk--kMrrQCxnysAm8nJC-VjDBX-LwVygx7Q=&xsec_source=pc_share)！
