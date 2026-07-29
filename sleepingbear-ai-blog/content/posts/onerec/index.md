@@ -1,7 +1,7 @@
 +++
 date = '2026-07-29T10:00:00-07:00'
 draft = false
-title = 'OneRec（快手）: 用一个生成式模型统一召回与排序'
+title = 'OneRec（快手）详解和思考：一个生成式推荐模型统一召回与排序'
 tags = ['onerec', '推荐系统', '生成式推荐', 'semanticid', 'moe', 'dpo', '偏好对齐', 'llm', '快手', 'ai学习']
 summary = """
   *一个生成式模型，替掉整套"召回→排序"级联；一次生成一整个 session；再用 Reward Model 驱动的自我提升 DPO 循环做偏好对齐。*
