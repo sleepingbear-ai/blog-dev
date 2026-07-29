@@ -4,11 +4,11 @@ draft = false
 title = 'OneRec（快手）详解和思考：一个生成式推荐模型统一召回与排序'
 tags = ['onerec', '推荐系统', '生成式推荐', 'semanticid', 'moe', 'dpo', '偏好对齐', 'llm', '快手', 'ai学习']
 summary = """
-  *一个生成式推荐模型，代替整套"召回→排序"栈；一次生成一整个 session；再用 Reward Model 驱动的 Self-Improving DPO 循环做 Preference Alignment。*
+  *一个生成式推荐模型，代替整套"召回→排序"流程；一次生成一整个 session；再用 Reward Model 驱动的 Self-Improving DPO 循环做 Preference Alignment。*
 """
 +++
 
-*一个生成式推荐模型，代替整套"召回→排序"栈；一次生成一整个 session；再用 Reward Model 驱动的 Self-Improving DPO 循环做 Preference Alignment。*
+*一个生成式推荐模型，代替整套"召回→排序"流程；一次生成一整个 session；再用 Reward Model 驱动的 Self-Improving DPO 循环做 Preference Alignment。*
 
 论文：**[OneRec: Unifying Retrieve and Rank with Generative Recommender and Preference Alignment](https://arxiv.org/abs/2502.18965)**（Deng et al., 快手, 2025）
 
@@ -16,7 +16,7 @@ summary = """
 
 ## TL;DR
 
-现在的推荐系统跑的是**多阶段栈**：召回 → 粗排 → 精排。每一段都是一个独立的模型，而上一段的质量，就是下一段的天花板。像 **TIGER**（[我之前的这篇](../tiger-generative-retrieval/)）这样的生成式召回工作，把召回变成了 LLM 式的 **next-Semantic-ID 预测**——但它只替掉了**召回**这一段。
+推荐系统通常是**多阶段**流程：召回 → 粗排 → 精排。每一段都有一个独立的模型，而上一段的质量，就是下一段的天花板。像 **TIGER**（[我之前的这篇](../tiger-generative-retrieval/)）这样的生成式召回工作，把召回变成了 LLM 式的 **next-Semantic-ID 预测**——但它只重写了**召回**这一段。
 
 **OneRec** 更彻底：把**整条**推荐链路收进**一个 encoder–decoder Transformer**。它读用户的观看历史，**直接生成下一个 session 的视频列表**——召回和排序合并成同一次自回归解码。三个关键设计：（1）**稀疏 MoE（Mixture-of-Experts）** decoder，让模型能便宜地 scale up；（2）**Session-wise 生成**——一次产出 5~10 个视频的完整列表，而不是一次一个 item；（3）**IPA（Iterative Preference Alignment，迭代式偏好对齐）**——用 Reward Model + DPO 的循环，教模型什么样的 session 用户真的爱看。上线快手主 feed（数亿 DAU），A/B 测试**总观看时长 +1.68%**——在工业级规模上，这对生成式推荐是一个相当大的胜利。
 
@@ -146,7 +146,7 @@ Reward Model（RM）给一个候选 session 打分，而且是**多目标同时�
 
 ### 大方向
 
-- **这篇论文为什么重要。** TIGER 让生成式**召回**变得有竞争力；OneRec 是最早做到**一个生成式模型**、在真实的大规模生产系统里**打败一套成熟且调优充分的完整推荐栈（召回 + 排序）**的工作之一。这正是这个领域一直在等的里程碑——它展示了生成式推荐这个新方向的巨大潜力。
+- **这篇论文为什么重要。** TIGER 让生成式**召回**变得有竞争力；OneRec 是最早做到**一个生成式模型**、在真实的大规模生产系统里**打败一套成熟且调优充分的完整推荐栈**（召回 + 排序）的工作之一。这正是这个领域一直在等的里程碑——它展示了生成式推荐这个新方向的巨大潜力。
 - **行业趋势。** "推荐正在变成一个 LLM 问题"这个论断，在这里走到了它的逻辑终点：item 即 token，整条链路就是一个序列模型，用 Scaling Law + MoE 换容量，用 RLHF 式的偏好对齐（DPO + Reward Model）换质量。随着推理成本继续下降，可以预期推荐栈里更多的部分会塌缩进这样的生成式结构里——而自我提升的对齐循环，很可能成为推荐系统里一项激动人心的关键技术！
 - **把推荐模型 scale up。** OneRec 只是其中一条路，还有很多值得探索。OneRec-1B 按 LLM 的标准还很小，随着 LLM 推理越来越便宜，把模型继续做大，是一条很有希望拿到更大收益的路。
 
