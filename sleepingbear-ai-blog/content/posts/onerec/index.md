@@ -18,9 +18,11 @@ summary = """
 
 推荐系统通常是**多阶段**流程：召回 → 粗排 → 精排。每一段都有一个独立的模型，而上一段的质量，就是下一段的天花板。像 **TIGER**（[参见我之前的这篇](../tiger-generative-retrieval/)）这样的生成式召回工作，把召回变成了 LLM 式的 **next-Semantic-ID 预测**——但它只改变了**召回**这一段。
 
-**OneRec** 更彻底：把**整条**推荐链路统一成**一个 encoder–decoder Transformer** 模型。它读用户的观看历史，**直接生成下一个 session 的 item list**——召回和排序合并为一。
+**OneRec** 更彻底：把**整条**推荐链路统一成**一个 encoder–decoder Transformer** 模型。它读用户的观看历史，**直接生成下一个 session 的 item list**——召回和排序合并为一。三个关键设计：
 
-三个关键设计：（1）**稀疏 MoE（Mixture-of-Experts）** decoder，让模型能高效 scale up；（2）**Session-wise Generation**——一次生成 5~10 个视频的 item list，而不是一次一个 item；（3）**IPA（Iterative Preference Alignment，迭代式偏好对齐）**——用 Reward Model + DPO 的循环，教模型什么样的 session 用户真的喜欢。
+- **稀疏 MoE（Mixture-of-Experts）decoder**：让模型能高效 scale up。
+- **Session-wise Generation**：一次生成 5~10 个视频的 item list，而不是一次一个 item。
+- **IPA（Iterative Preference Alignment，迭代式偏好对齐）**：用 Reward Model + DPO 的循环，教模型什么样的 session 用户真的喜欢。
 
 OneRec 在快手 main feed（数亿 DAU）上线，A/B 测试**总观看时长 +1.68%**——在工业级规模上，这是生成式推荐的一个相当大的胜利。OneRec 更是一次很有意思的尝试：用**一个**端到端训练的模型，替掉**整套**多阶段架构——这背后是行业更大的趋势：**少一些人工设计的 pipeline 结构，多给模型一些自由，换取更高的天花板。**
 
