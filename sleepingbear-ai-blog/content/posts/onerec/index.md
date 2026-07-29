@@ -22,9 +22,7 @@ summary = """
 
 三个关键设计：（1）**稀疏 MoE（Mixture-of-Experts）** decoder，让模型能高效 scale up；（2）**Session-wise Generation**——一次生成 5~10 个视频的 item list，而不是一次一个 item；（3）**IPA（Iterative Preference Alignment，迭代式偏好对齐）**——用 Reward Model + DPO 的循环，教模型什么样的 session 用户真的喜欢。
 
-OneRec 在快手 main feed（数亿 DAU）上线，A/B 测试**总观看时长 +1.68%**——在工业级规模上，这是生成式推荐的一个相当大的胜利。
-
-OneRec 更是一次很有意思的尝试：用**一个**端到端训练的模型，替掉**整套**多阶段架构——这背后是行业更大的趋势：**少一些人工设计的 pipeline 结构，多给模型一些自由，换取更高的天花板。**
+OneRec 在快手 main feed（数亿 DAU）上线，A/B 测试**总观看时长 +1.68%**——在工业级规模上，这是生成式推荐的一个相当大的胜利。OneRec 更是一次很有意思的尝试：用**一个**端到端训练的模型，替掉**整套**多阶段架构——这背后是行业更大的趋势：**少一些人工设计的 pipeline 结构，多给模型一些自由，换取更高的天花板。**
 
 ## 问题在哪
 
@@ -43,7 +41,11 @@ OneRec 更是一次很有意思的尝试：用**一个**端到端训练的模型
 
 ## 方法详解
 
-OneRec 有几个部分：**item tokenization**（把每个视频变成一个短短的 Semantic ID 元组）、**生成模型**（读用户历史，解码出下一个 session）、以及**迭代式 DPO 偏好对齐**（IPA）——用一个 **Reward Model** 来刻画用户到底喜欢什么。
+OneRec 的结构：
+
+- **item tokenization**：把每个视频变成一个短的 Semantic ID tuple。
+- **生成模型**：读用户历史，解码出下一个 session。
+- **迭代式 DPO 偏好对齐（IPA）**：用一个 **Reward Model** 来刻画用户到底喜欢什么。
 
 ### Step 1 —— 把视频 tokenize 成 Semantic ID（balanced K-means）
 
