@@ -100,9 +100,9 @@ Reward Model（RM）给一个候选 session 打分，而且是**多目标同时�
 
 ![Reward Model 架构：session 里的每个 item vᵢ 先与用户 u 做 target-aware 融合（eᵢ = vᵢ ⊙ u）；得到的 item 向量通过 self-attention 相互交互，再 sum-pooling 成一个向量，最后送进四个 Sigmoid(MLP) 塔，各自预测一个 reward——观看时长（swt）、完播（vtr）、关注（wtr）、点赞（ltr）。](reward-model.svg)
 
-*Reward Model 结构，依据[论文](https://arxiv.org/abs/2502.18965) 3.3.1 节为本篇而作。*
+*Reward Model 结构（依据[论文](https://arxiv.org/abs/2502.18965) 3.3.1 节绘制，论文中没有这张图）。*
 
-论文没有说最终的总 reward 怎么算，但很可能是各个目标预测值的某种组合（比如 weighted sum）。
+论文没有说最终的总 reward 怎么计算，但很可能是各个目标预测值的某种组合（比如 weighted sum）。
 
 #### 用 DPO 做迭代式偏好对齐
 
