@@ -96,13 +96,13 @@ OneRec 的解法：训练一个 **Reward Model** 来替代真实的用户反馈�
 
 #### Reward Model
 
-Reward Model（RM）给一个候选 session 打分，而且是**多目标同时打分**——它很像传统推荐系统里常用的多任务排序模型（Multi-task Ranking Model）。对于 session `S = {v₁, …, vₘ}` 和用户 `u`：先做 **target-aware** 的表示融合（`eᵢ = vᵢ ⊙ u`，比如对用户行为序列做 target attention），再让这些 item **通过 self-attention 相互交互**，然后 **sum-pooling** 成一个向量，最后过**四个 `Sigmoid(MLP)` 塔**——每个塔一个目标：**观看时长（swt）、完播（vtr）、关注（wtr）、点赞（ltr）**。RM 用海量的日志反馈、以 binary cross-entropy loss 预训练。
+Reward Model（RM）给一个候选 session 打分，而且是**多目标同时打分**——它很像传统推荐系统里常用的多任务排序模型（Multi-task Ranking Model）。对于 session `S = {v₁, …, vₘ}` 和用户 `u`：先做 **target-aware fusion**（`eᵢ = vᵢ ⊙ u`，比如对用户行为序列做 target attention），再让这些 item **通过 self-attention 相互交互**，然后 **sum-pooling** 成一个向量，最后过**四个 `Sigmoid(MLP)` 塔**——每个塔预测一个目标：**观看时长（swt）、完播（vtr）、关注（wtr）、点赞（ltr）**。Reward Model 用海量的日志反馈、以 binary cross-entropy loss 预训练。
 
 ![Reward Model 架构：session 里的每个 item vᵢ 先与用户 u 做 target-aware 融合（eᵢ = vᵢ ⊙ u）；得到的 item 向量通过 self-attention 相互交互，再 sum-pooling 成一个向量，最后送进四个 Sigmoid(MLP) 塔，各自预测一个 reward——观看时长（swt）、完播（vtr）、关注（wtr）、点赞（ltr）。](reward-model.svg)
 
-*Reward Model，依据[论文](https://arxiv.org/abs/2502.18965) 3.3.1 节（论文里没有这张图）。*
+*Reward Model 结构，依据[论文](https://arxiv.org/abs/2502.18965) 3.3.1 节为本篇而作。*
 
-论文没有说最终的总 reward 怎么算，但很可能是各个目标预测值的某种组合（比如加权求和）。
+论文没有说最终的总 reward 怎么算，但很可能是各个目标预测值的某种组合（比如 weighted sum）。
 
 #### 用 DPO 做迭代式偏好对齐
 
@@ -166,7 +166,7 @@ Reward Model（RM）给一个候选 session 打分，而且是**多目标同时�
 ## 参考文献
 
 - **OneRec**：[OneRec: Unifying Retrieve and Rank with Generative Recommender and Preference Alignment](https://arxiv.org/abs/2502.18965)（Deng et al., 快手, 2025）
-- **TIGER**：[Recommender Systems with Generative Retrieval](https://arxiv.org/abs/2305.05065)（Rajput et al., NeurIPS 2023）——[我的中文解读](../tiger-generative-retrieval/)
+- **TIGER**：[Recommender Systems with Generative Retrieval](https://arxiv.org/abs/2305.05065)（Rajput et al., NeurIPS 2023）——[我的解读](../tiger-generative-retrieval/)
 - **DPO**：[Direct Preference Optimization: Your Language Model is Secretly a Reward Model](https://arxiv.org/abs/2305.18290)（Rafailov et al., NeurIPS 2023）
 
 ---
