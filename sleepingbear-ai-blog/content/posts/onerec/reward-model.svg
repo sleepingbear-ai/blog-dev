@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 680" font-family="'Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#555"/>
+    </marker>
+  </defs>
+
+  <!-- background -->
+  <rect x="0" y="0" width="800" height="680" fill="#ffffff"/>
+
+  <!-- title -->
+  <text x="400" y="30" text-anchor="middle" font-size="18" font-weight="700" fill="#222">Reward Model (RM)</text>
+  <text x="400" y="50" text-anchor="middle" font-size="12.5" fill="#666">scores a candidate session on several user-behavior objectives</text>
+
+  <!-- ===== reward outputs (top) ===== -->
+  <!-- circles -->
+  <g>
+    <circle cx="130" cy="92" r="9" fill="#f2c14e" stroke="#c9922a"/>
+    <circle cx="310" cy="92" r="9" fill="#f2c14e" stroke="#c9922a"/>
+    <circle cx="490" cy="92" r="9" fill="#f2c14e" stroke="#c9922a"/>
+    <circle cx="670" cy="92" r="9" fill="#f2c14e" stroke="#c9922a"/>
+  </g>
+  <g font-size="12.5" text-anchor="middle" fill="#333" font-weight="700">
+    <text x="130" y="74">r̂ · watch-time</text>
+    <text x="310" y="74">r̂ · view-through</text>
+    <text x="490" y="74">r̂ · follow</text>
+    <text x="670" y="74">r̂ · like</text>
+  </g>
+
+  <!-- ===== tower boxes ===== -->
+  <g fill="#cfe3f7" stroke="#6aa3d5" stroke-width="1.2">
+    <rect x="70" y="128" width="120" height="46" rx="8"/>
+    <rect x="250" y="128" width="120" height="46" rx="8"/>
+    <rect x="430" y="128" width="120" height="46" rx="8"/>
+    <rect x="610" y="128" width="120" height="46" rx="8"/>
+  </g>
+  <g font-size="12.5" text-anchor="middle" fill="#1c3a5e">
+    <text x="130" y="147" font-weight="700">Tower_swt</text>
+    <text x="130" y="164" font-size="11" fill="#3d6591">Sigmoid(MLP)</text>
+    <text x="310" y="147" font-weight="700">Tower_vtr</text>
+    <text x="310" y="164" font-size="11" fill="#3d6591">Sigmoid(MLP)</text>
+    <text x="490" y="147" font-weight="700">Tower_wtr</text>
+    <text x="490" y="164" font-size="11" fill="#3d6591">Sigmoid(MLP)</text>
+    <text x="670" y="147" font-weight="700">Tower_ltr</text>
+    <text x="670" y="164" font-size="11" fill="#3d6591">Sigmoid(MLP)</text>
+  </g>
+
+  <!-- tower -> reward arrows -->
+  <g stroke="#555" stroke-width="1.4" marker-end="url(#arrow)">
+    <line x1="130" y1="128" x2="130" y2="104"/>
+    <line x1="310" y1="128" x2="310" y2="104"/>
+    <line x1="490" y1="128" x2="490" y2="104"/>
+    <line x1="670" y1="128" x2="670" y2="104"/>
+  </g>
+
+  <!-- ===== sum pooling ===== -->
+  <rect x="150" y="220" width="500" height="46" rx="8" fill="#e9def5" stroke="#a583c9" stroke-width="1.2"/>
+  <text x="400" y="248" text-anchor="middle" font-size="13.5" fill="#4a2f6b" font-weight="600">Sum pooling &#160;&#160; h = &#931;&#7522; (self-attention output)&#7522;</text>
+
+  <!-- sum -> towers (fan-out) -->
+  <g stroke="#555" stroke-width="1.4" fill="none" marker-end="url(#arrow)">
+    <path d="M400,220 C400,196 130,200 130,178"/>
+    <path d="M400,220 C400,200 310,200 310,178"/>
+    <path d="M400,220 C400,200 490,200 490,178"/>
+    <path d="M400,220 C400,196 670,200 670,178"/>
+  </g>
+
+  <!-- ===== self-attention ===== -->
+  <rect x="150" y="320" width="500" height="52" rx="8" fill="#fdf0c9" stroke="#e0b84c" stroke-width="1.3"/>
+  <text x="400" y="344" text-anchor="middle" font-size="14" fill="#7a5a12" font-weight="700">Self-Attention over { e&#8321; &#8230; e&#8344; }</text>
+  <text x="400" y="362" text-anchor="middle" font-size="11.5" fill="#9a7420">items interact within the session</text>
+
+  <!-- sum <- self-attn arrow -->
+  <line x1="400" y1="320" x2="400" y2="270" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+
+  <!-- ===== target-aware fusion ===== -->
+  <rect x="150" y="426" width="500" height="52" rx="8" fill="#fde3c4" stroke="#e0a15c" stroke-width="1.3"/>
+  <text x="400" y="457" text-anchor="middle" font-size="14" fill="#8a4b12" font-weight="700">Target-aware fusion &#160; e&#7522; = v&#7522; &#8857; u</text>
+
+  <!-- self-attn <- fusion arrow -->
+  <line x1="400" y1="426" x2="400" y2="376" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+
+  <!-- ===== inputs ===== -->
+  <!-- session items -->
+  <g fill="#d6efd6" stroke="#5aa06a" stroke-width="1.2">
+    <rect x="150" y="556" width="70" height="40" rx="8"/>
+    <rect x="230" y="556" width="70" height="40" rx="8"/>
+    <rect x="310" y="556" width="70" height="40" rx="8"/>
+  </g>
+  <g font-size="13" text-anchor="middle" fill="#1f5130" font-weight="700">
+    <text x="185" y="581">v&#8321;</text>
+    <text x="265" y="581">v&#8322;</text>
+    <text x="345" y="581">v&#8344;</text>
+  </g>
+  <text x="400" y="581" font-size="15" fill="#777">&#8943;</text>
+  <text x="265" y="618" text-anchor="middle" font-size="11.5" fill="#888">session items (videos)</text>
+
+  <!-- user -->
+  <rect x="560" y="556" width="90" height="40" rx="8" fill="#e6e6e6" stroke="#999" stroke-width="1.2"/>
+  <text x="605" y="581" text-anchor="middle" font-size="13" fill="#333" font-weight="700">User u</text>
+  <text x="605" y="618" text-anchor="middle" font-size="11.5" fill="#888">user representation</text>
+
+  <!-- inputs -> fusion arrows -->
+  <g stroke="#555" stroke-width="1.4" fill="none" marker-end="url(#arrow)">
+    <path d="M265,556 C265,530 380,510 400,486"/>
+    <path d="M605,556 C605,520 430,510 405,486"/>
+  </g>
+  <text x="470" y="524" text-anchor="middle" font-size="12" fill="#555">&#8857; per item</text>
+
+  <!-- footnote -->
+  <text x="400" y="662" text-anchor="middle" font-size="11.5" fill="#999">Pre-trained on abundant logged feedback with a binary cross-entropy loss (L_RM); frozen when scoring sessions during IPA.</text>
+</svg>

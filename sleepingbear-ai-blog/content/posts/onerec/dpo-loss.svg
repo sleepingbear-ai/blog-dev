@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 150" font-family="Georgia,'Times New Roman',serif">
+  <rect x="0" y="0" width="900" height="150" fill="#ffffff"/>
+
+  <!-- baseline for inline pieces ~ y=82 -->
+  <g font-size="23" fill="#222">
+    <!-- L_DPO = -->
+    <text x="20" y="82" font-style="italic">L<tspan font-size="12" dy="6" font-style="normal">DPO</tspan><tspan dy="-6"> =</tspan></text>
+
+    <!-- - log σ -->
+    <text x="112" y="82">&#8722; log &#963;</text>
+  </g>
+
+  <!-- big left paren -->
+  <text x="186" y="103" font-size="74" fill="#222" font-family="Georgia,serif">(</text>
+
+  <!-- β log -->
+  <text x="214" y="82" font-size="23" fill="#222"><tspan font-style="italic">&#946;</tspan> log</text>
+
+  <!-- fraction 1  (center cx=395, rule 288..502) -->
+  <g text-anchor="middle" font-size="17">
+    <text x="395" y="66"><tspan font-style="italic" fill="#222">P</tspan><tspan font-size="11" dy="5" font-style="italic">t+1</tspan><tspan dy="-5" fill="#222">(</tspan><tspan fill="#2e7d32" font-weight="bold">chosen</tspan><tspan fill="#222"> | history)</tspan></text>
+    <line x1="290" y1="76" x2="500" y2="76" stroke="#222" stroke-width="1.4"/>
+    <text x="395" y="98"><tspan font-style="italic" fill="#222">P</tspan><tspan font-size="11" dy="5" font-style="italic">t</tspan><tspan dy="-5" fill="#222">(</tspan><tspan fill="#2e7d32" font-weight="bold">chosen</tspan><tspan fill="#222"> | history)</tspan></text>
+  </g>
+
+  <!-- minus between terms -->
+  <text x="516" y="82" font-size="23" fill="#222">&#8722;</text>
+
+  <!-- β log -->
+  <text x="542" y="82" font-size="23" fill="#222"><tspan font-style="italic">&#946;</tspan> log</text>
+
+  <!-- fraction 2  (center cx=725, rule 610..840) -->
+  <g text-anchor="middle" font-size="17">
+    <text x="725" y="66"><tspan font-style="italic" fill="#222">P</tspan><tspan font-size="11" dy="5" font-style="italic">t+1</tspan><tspan dy="-5" fill="#222">(</tspan><tspan fill="#c62828" font-weight="bold">rejected</tspan><tspan fill="#222"> | history)</tspan></text>
+    <line x1="612" y1="76" x2="838" y2="76" stroke="#222" stroke-width="1.4"/>
+    <text x="725" y="98"><tspan font-style="italic" fill="#222">P</tspan><tspan font-size="11" dy="5" font-style="italic">t</tspan><tspan dy="-5" fill="#222">(</tspan><tspan fill="#c62828" font-weight="bold">rejected</tspan><tspan fill="#222"> | history)</tspan></text>
+  </g>
+
+  <!-- big right paren -->
+  <text x="852" y="103" font-size="74" fill="#222" font-family="Georgia,serif">)</text>
+
+  <!-- legend -->
+  <text x="450" y="138" text-anchor="middle" font-size="12.5" fill="#777" font-family="'Helvetica Neue',Arial,sans-serif">P&#8348; = frozen reference (OneRec&#8348;) &#183; P&#8348;&#8330;&#8321; = model being trained &#183; &#946; = DPO temperature &#183; &#963; = sigmoid</text>
+</svg>

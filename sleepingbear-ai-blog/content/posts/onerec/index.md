@@ -49,19 +49,9 @@ OneRec 有几个部分：**item tokenization**（把每个视频变成一个短�
 
 所以 OneRec 换成了 **residual balanced K-means**（残差式均衡 K-means）。每一层把 item 聚成 `K = 8192` 个簇，而且**加了约束：每个簇装的 item 数量必须一样多**（`w = |V| / K`）。一个 item 的 Semantic ID，就是逐层最近的那些质心（centroid）的序号：
 
-```
-item embedding e
-     │
-Level 1： 在 codebook 1（8192 个质心）里找最近的 → code a
-     │    残差 r² = e − centroid_a
-     ▼
-Level 2： 在 codebook 2（8192 个质心）里找最近的 → code b
-     │    残差 r³ = r² − centroid_b
-     ▼
-Level 3： 在 codebook 3（8192 个质心）里找最近的 → code c
+![residual balanced K-means 的 Semantic ID 分配过程：视频 embedding e 逐层往下走，每一层在这一层 8192 条的 codebook 里找最近的质心，得到一个 code（依次是 a、b、c），剩下的残差（r² = e − code_a，然后 r³ = r² − code_b）传给下一层。三个 code 合起来就是 Semantic ID (a, b, c)。](semantic-id.svg)
 
-       Semantic ID = (a, b, c)      ← 每个视频 = 3 个 token
-```
+*用 residual balanced K-means 分配 Semantic ID（示意图；论文里是 Algorithm 1 的伪代码）。*
 
 3 层各有自己的 8192 条 codebook，所以只用 `3 × 8192` 个 codeword embedding，就能表示 `8192³ ≈ 5.5×10¹¹` 个 item。一个视频，从此就是**3 个 token**。
 
@@ -95,13 +85,7 @@ OneRec 的解法：训一个 **Reward Model** 来替代真实的用户反馈，�
 
 Reward Model（RM）给一个候选 session 打分，而且是**多目标同时打分**——它很像传统推荐系统里常用的多任务排序模型（Multi-task Ranking Model）。对于 session `S = {v₁, …, vₘ}` 和用户 `u`：先做 **target-aware** 的表示融合（`eᵢ = vᵢ ⊙ u`，比如对用户行为序列做 target attention），再让这些 item **通过 self-attention 相互交互**，然后 **sum-pooling** 成一个向量，最后过**四个 `Sigmoid(MLP)` 塔**——每个塔一个目标：**观看时长（swt）、完播（vtr）、关注（wtr）、点赞（ltr）**。RM 用海量的日志反馈、以 binary cross-entropy loss 预训练。
 
-```
-                     ┌─ Sigmoid(MLP) ─► swt（观看时长）
- v₁ ⊙ u ┐            ├─ Sigmoid(MLP) ─► vtr（完播）
- v₂ ⊙ u ├─► self-  ─► sum-  ─►  ┤
-   ...  │  attention  pooling   ├─ Sigmoid(MLP) ─► wtr（关注）
- vₘ ⊙ u ┘                       └─ Sigmoid(MLP) ─► ltr（点赞）
-```
+![Reward Model 架构：session 里的每个 item vᵢ 先与用户 u 做 target-aware 融合（eᵢ = vᵢ ⊙ u）；得到的 item 向量通过 self-attention 相互交互，再 sum-pooling 成一个向量，最后送进四个 Sigmoid(MLP) 塔，各自预测一个 reward——观看时长（swt）、完播（vtr）、关注（wtr）、点赞（ltr）。](reward-model.svg)
 
 *Reward Model，依据[论文](https://arxiv.org/abs/2502.18965) 3.3.1 节（论文里没有这张图）。*
 
@@ -119,12 +103,7 @@ Reward Model（RM）给一个候选 session 打分，而且是**多目标同时�
 
 **迭代式 DPO 训练。** 每一轮训一个新模型 `OneRec_{t+1}`，从当前的 `OneRec_t` 初始化——而 `OneRec_t` 随即被**冻住，当作 reference model**。对每个偏好 pair，**DPO** loss 推着 `OneRec_{t+1}` 提高 *chosen* session 的概率、压低 *rejected* 的概率，而且两者都是**相对于冻住的 reference** 来衡量的：
 
-```
-L_DPO = −log σ( β·[ log(P_{t+1}(chosen)/P_t(chosen))
-                   − log(P_{t+1}(rejected)/P_t(rejected)) ] )
-
-P_{t+1} = 正在训练的模型；P_t = 冻住的 reference model
-```
+![单个偏好 pair 的 DPO loss：负的 log-sigmoid，括号里是 β 乘以（chosen session 在训练模型 P_{t+1} 下与冻住的 reference P_t 下的似然之比取 log），再减去 rejected session 的同一个 log 比值。](dpo-loss.svg)
 
 关键在于，OneRec **并不是只优化 DPO**，而是训练组合 loss：**`L = L_NTP + λ·L_DPO`**——保留 Next-Token-Prediction loss，让模型在学偏好信号的同时，仍然**模仿**好的 session（纯 DPO 会让模型漂走，生成出不合法的 session）。
 

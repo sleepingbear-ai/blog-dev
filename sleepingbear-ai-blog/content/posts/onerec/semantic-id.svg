@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 480" font-family="'Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#555"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="700" height="480" fill="#ffffff"/>
+
+  <!-- input embedding -->
+  <rect x="220" y="18" width="140" height="34" rx="8" fill="#e6e6e6" stroke="#999" stroke-width="1.1"/>
+  <text x="290" y="40" text-anchor="middle" font-size="13.5" fill="#333"><tspan font-style="italic" font-weight="700">e</tspan> — item embedding</text>
+  <line x1="290" y1="52" x2="290" y2="70" stroke="#555" stroke-width="1.4" marker-end="url(#arr)"/>
+
+  <!-- Level 1 -->
+  <rect x="140" y="72" width="300" height="48" rx="9" fill="#fdf0c9" stroke="#e0b84c" stroke-width="1.3"/>
+  <text x="290" y="101" text-anchor="middle" font-size="14" fill="#7a5a12" font-weight="700">Level 1 · nearest centroid (of 8192)</text>
+  <!-- code a -->
+  <line x1="440" y1="96" x2="500" y2="96" stroke="#555" stroke-width="1.4" marker-end="url(#arr)"/>
+  <rect x="502" y="79" width="120" height="34" rx="8" fill="#fde3c4" stroke="#e0a15c" stroke-width="1.2"/>
+  <text x="562" y="101" text-anchor="middle" font-size="13.5" fill="#8a4b12" font-weight="700">code a</text>
+  <!-- residual to level 2 -->
+  <line x1="290" y1="120" x2="290" y2="188" stroke="#555" stroke-width="1.4" marker-end="url(#arr)"/>
+  <text x="304" y="158" font-size="12.5" fill="#555">residual &#160;r&#178; = e &#8722; code_a</text>
+
+  <!-- Level 2 -->
+  <rect x="140" y="190" width="300" height="48" rx="9" fill="#fdf0c9" stroke="#e0b84c" stroke-width="1.3"/>
+  <text x="290" y="219" text-anchor="middle" font-size="14" fill="#7a5a12" font-weight="700">Level 2 · nearest centroid (of 8192)</text>
+  <line x1="440" y1="214" x2="500" y2="214" stroke="#555" stroke-width="1.4" marker-end="url(#arr)"/>
+  <rect x="502" y="197" width="120" height="34" rx="8" fill="#cfe3f7" stroke="#6aa3d5" stroke-width="1.2"/>
+  <text x="562" y="219" text-anchor="middle" font-size="13.5" fill="#1c3a5e" font-weight="700">code b</text>
+  <line x1="290" y1="238" x2="290" y2="306" stroke="#555" stroke-width="1.4" marker-end="url(#arr)"/>
+  <text x="304" y="276" font-size="12.5" fill="#555">residual &#160;r&#179; = r&#178; &#8722; code_b</text>
+
+  <!-- Level 3 -->
+  <rect x="140" y="308" width="300" height="48" rx="9" fill="#fdf0c9" stroke="#e0b84c" stroke-width="1.3"/>
+  <text x="290" y="337" text-anchor="middle" font-size="14" fill="#7a5a12" font-weight="700">Level 3 · nearest centroid (of 8192)</text>
+  <line x1="440" y1="332" x2="500" y2="332" stroke="#555" stroke-width="1.4" marker-end="url(#arr)"/>
+  <rect x="502" y="315" width="120" height="34" rx="8" fill="#d6efd6" stroke="#5aa06a" stroke-width="1.2"/>
+  <text x="562" y="337" text-anchor="middle" font-size="13.5" fill="#1f5130" font-weight="700">code c</text>
+
+  <!-- collect into Semantic ID -->
+  <line x1="290" y1="356" x2="290" y2="410" stroke="#555" stroke-width="1.4" marker-end="url(#arr)"/>
+  <rect x="185" y="412" width="210" height="46" rx="9" fill="#e9def5" stroke="#a583c9" stroke-width="1.3"/>
+  <text x="290" y="441" text-anchor="middle" font-size="15" fill="#4a2f6b" font-weight="700">Semantic ID = (a, b, c)</text>
+</svg>
