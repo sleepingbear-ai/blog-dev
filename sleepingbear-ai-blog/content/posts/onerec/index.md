@@ -83,7 +83,7 @@ OneRec 的结构：
 *OneRec 的 encoder–decoder（decoder 里是 MoE），[论文](https://arxiv.org/abs/2502.18965) Figure 2a。*
 
 - **Encoder** 读用户行为序列 `H_u`（看过 / 点赞 / 关注 / 分享的视频，最多 `n = 256` 个）构成的 Semantic ID 序列。
-- **Decoder** 逐 token 生成目标 **session**（`L_NTP` 是 Next-Token-Prediction loss），再把每 3 个 token 一组映射回视频。
+- **Decoder** 逐 token 生成目标 **session**（`L_NTP` 就是 seq2seq 里经典的 Next-Token-Prediction loss），再把每 3 个 token 一组映射回视频。
 - **Decoder 里的稀疏 MoE** 把 FFN 换成了 `N_MoE = 24` 个 expert，router 每个 token 只激活 `K_MoE = 2` 个。这样可以只 scale 模型**容量**，而不成比例地增加**推理成本**——线上服务时**只有约 13% 的参数是激活的**。而且和 LLM 的 Scaling Law 一致：论文发现模型越大，推荐效果越好。
 
 ### Step 4 —— 用 Reward Model 和 DPO 做迭代式偏好对齐
