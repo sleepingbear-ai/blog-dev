@@ -51,17 +51,17 @@ OneRec 的结构：
 
 ### Step 1 —— 把视频 tokenize 成 Semantic ID（balanced K-means）
 
-和 TIGER 一样，OneRec 给每个 item 一个 **Semantic ID**：一个短 codeword 元组，相似的 item 共享前缀。每个视频先是一个**多模态 embedding** `e`，再被量化成 `L = 3` 个 token（每层一个）。
+和 TIGER 一样，OneRec 给每个 item 一个 **Semantic ID**：一个短 codeword tuple，相似的 item 共享前缀。每个视频先是一个**多模态 embedding** `e`，再被量化（quantized）成 `L = 3` 个 token（每层一个）。
 
-但**量化器不同**。TIGER 训练并使用了 **RQ-VAE**；OneRec 发现 RQ-VAE 产出的 **code 分布严重不均衡**——少数 code 吸走了大部分 item，而大部分 code 几乎是空的（所谓 *"hourglass phenomenon"*，沙漏现象）。这对生成模型很不友好：它希望概率能均匀铺在一个被充分利用的词表上。
+但方法不同：TIGER 训练并使用了 **RQ-VAE**；OneRec 发现 RQ-VAE 产出的 **code 分布严重不均衡**——少数 code 吸走了大部分 item，而大部分 code 几乎是空的（所谓 *"hourglass phenomenon"*，沙漏现象）。这对生成模型很不友好：它希望概率能均匀分布在一个被充分利用的 codebook 上。
 
-所以 OneRec 换成了 **residual balanced K-means**（残差式均衡 K-means）。每一层把 item 聚成 `K = 8192` 个簇，而且**加了约束：每个簇装的 item 数量必须一样多**（`w = |V| / K`）。一个 item 的 Semantic ID，就是逐层最近的那些质心（centroid）的序号：
+所以 OneRec 换成了 **residual balanced K-means**（残差式均衡 K-means）。每一层把 item 聚成 `K = 8192` 个 cluster，而且**加了约束：每个 cluster 的 item 数量必须一样多**（`w = |V| / K`）。一个 item 的 Semantic ID，就是逐层最近的那些 centroid 的序号：
 
 ![residual balanced K-means 的 Semantic ID 分配过程：视频 embedding e 逐层往下走，每一层在这一层 8192 条的 codebook 里找最近的质心，得到一个 code（依次是 a、b、c），剩下的残差（r² = e − code_a，然后 r³ = r² − code_b）传给下一层。三个 code 合起来就是 Semantic ID (a, b, c)。](semantic-id.svg)
 
 *用 residual balanced K-means 分配 Semantic ID（示意图；论文里是 Algorithm 1 的伪代码）。*
 
-3 层各有自己的 8192 条 codebook，所以只用 `3 × 8192` 个 codeword embedding，就能表示 `8192³ ≈ 5.5×10¹¹` 个 item。一个视频，从此就是**3 个 token**。
+3 层各有一个 8192 个 code 的 codebook，所以只用 `3 × 8192` 个 codeword embedding，就能表示 `8192³ ≈ 5.5×10¹¹` 个 item。一个视频，从此就是**3 个 token**。
 
 ### Step 2 —— Session-wise 生成（而不是 point-wise）
 
