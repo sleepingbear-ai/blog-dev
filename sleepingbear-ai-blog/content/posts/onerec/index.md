@@ -72,19 +72,19 @@ OneRec 的结构：
 - **point-wise**：每个候选单独打分，取最高的 5 个——很可能是 5 个雷同的钓鱼视频。
 - **session-wise**：直接生成一整串 item list，比如钓鱼技巧 → 水下咬钩高光 → 钓鱼翻车合集 → 渔具测评 → 户外做饭。因为以 session 为目标，模型会自己优化**多样性**和**顺序**。
 
-训练目标是从日志里挖出来的 **high-value session**：比如用户看了 ≥5 个视频、总观看时长超过某个阈值、并且有互动（点赞 / 收藏 / 分享）的 session。模型是一个 seq2seq 生成模型，以用户观看历史序列为输入，学习生成这些 high-value session（`m = 5` 个目标 item）。
+训练目标是从日志里挖出来的 **high-value session**：比如用户看了 ≥5 个视频、总观看时长超过某个阈值、并且有互动（点赞 / 收藏 / 分享）的 session。模型是一个 seq2seq 生成模型，以用户行为历史序列为输入，学习生成这些 high-value session（`m = 5` 个目标 item）。
 
-### Step 3 —— 生成下一个 session（encoder–decoder + MoE）
+### Step 3 —— 模型结构（encoder–decoder + MoE）
 
-统一推荐模型是一个 **encoder–decoder Transformer**：
+统一生成推荐模型是一个 **encoder–decoder Transformer**：
 
 ![图 2a：OneRec 架构。Encoder 用全可见的 self-attention 和 FFN 读入用户行为历史序列（每个视频是用 SEP 分隔的 semantic token），产出上下文 H。Decoder 用 causal self-attention、对 H 的 cross-attention，以及一个 Mixture-of-Experts 层（router 从 N 个 expert 里激活 2 个）自回归地生成高价值 session，用 next-token-prediction loss 训练。](fig2-architecture.png)
 
-*OneRec 的 encoder–decoder（decoder 里是 MoE），[论文](https://arxiv.org/abs/2502.18965) Figure 2a。每个视频是 3 个 semantic token（`<a_·><b_·><c_·>`），decoder 一个一个往外吐。*
+*OneRec 的 encoder–decoder（decoder 里是 MoE），[论文](https://arxiv.org/abs/2502.18965) Figure 2a。*
 
-- **Encoder** 读用户行为序列 `H_u`（看过 / 点赞 / 关注 / 分享的视频，最多 `n = 256` 个）。
-- **Decoder** 逐 token 生成目标 **session**（`L_NTP` 就是 Next-Token-Prediction loss），再把每 3 个 token 一组映射回视频。
-- **Decoder 里的稀疏 MoE** 把 FFN 换成了 `N_MoE = 24` 个 expert，router 每个 token 只激活 `K_MoE = 2` 个。这样只 scale 模型**容量**，不 scale **推理成本**——线上服务时**只有约 13% 的参数是激活的**。而且和 LLM 的 Scaling Law 一致：作者发现 OneRec 越大，推荐效果越好。
+- **Encoder** 读用户行为序列 `H_u`（看过 / 点赞 / 关注 / 分享的视频，最多 `n = 256` 个）构成的 Semantic ID 序列。
+- **Decoder** 逐 token 生成目标 **session**（`L_NTP` 是 Next-Token-Prediction loss），再把每 3 个 token 一组映射回视频。
+- **Decoder 里的稀疏 MoE** 把 FFN 换成了 `N_MoE = 24` 个 expert，router 每个 token 只激活 `K_MoE = 2` 个。这样可以只 scale 模型**容量**，而不成比例地增加**推理成本**——线上服务时**只有约 13% 的参数是激活的**。而且和 LLM 的 Scaling Law 一致：论文发现模型越大，推荐效果越好。
 
 ### Step 4 —— 用 Reward Model 和 DPO 做迭代式偏好对齐
 
