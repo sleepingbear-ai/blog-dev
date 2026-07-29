@@ -163,6 +163,12 @@ Reward Model（RM）给一个候选 session 打分，而且是**多目标同时�
 - **行业趋势。** "推荐正在变成一个 LLM 问题"这个论断，在这里走到了它的逻辑终点：item 即 token，整条链路就是一个序列模型，用 Scaling Law + MoE 换容量，用 RLHF 式的偏好对齐（DPO + Reward Model）换质量。随着推理成本继续下降，可以预期推荐链路里更多的部分会塌缩进这样的生成式结构里——而自我提升的对齐循环，很可能成为推荐系统里一项激动人心的关键技术！
 - **把推荐模型 scale up。** OneRec 只是其中一条路，还有很多值得探索。OneRec-1B 按 LLM 的标准还很小，随着 LLM 推理越来越便宜，把模型继续做大，是一条很有希望拿到更大收益的路。
 
+## 参考文献
+
+- **OneRec**：[OneRec: Unifying Retrieve and Rank with Generative Recommender and Preference Alignment](https://arxiv.org/abs/2502.18965)（Deng et al., 快手, 2025）
+- **TIGER**：[Recommender Systems with Generative Retrieval](https://arxiv.org/abs/2305.05065)（Rajput et al., NeurIPS 2023）——[我的中文解读](../tiger-generative-retrieval/)
+- **DPO**：[Direct Preference Optimization: Your Language Model is Secretly a Reward Model](https://arxiv.org/abs/2305.18290)（Rafailov et al., NeurIPS 2023）
+
 ---
 
 #ai #推荐系统 #生成式推荐 #onerec #semanticid #moe #dpo #偏好对齐 #llm #快手 #人工智能 #ai学习 #大模型
