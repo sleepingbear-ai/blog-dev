@@ -74,7 +74,7 @@ OneRec 的结构：
 
 训练目标是从日志里挖出来的 **high-value session**：比如用户看了 ≥5 个视频、总观看时长超过某个阈值、并且有互动（点赞 / 收藏 / 分享）的 session。模型是一个 seq2seq 生成模型，以用户行为历史序列为输入，学习生成这些 high-value session（`m = 5` 个目标 item）。
 
-### Step 3 —— 模型结构（encoder–decoder + MoE）
+#### 模型结构（encoder–decoder + MoE）
 
 统一生成推荐模型是一个 **encoder–decoder Transformer**：
 
@@ -86,13 +86,13 @@ OneRec 的结构：
 - **Decoder** 逐 token 生成目标 **session**（`L_NTP` 就是 seq2seq 里经典的 Next-Token-Prediction loss），再把每 3 个 token 一组映射回视频。
 - **Decoder 里的稀疏 MoE** 把 FFN 换成了 `N_MoE = 24` 个 expert，router 每个 token 只激活 `K_MoE = 2` 个。这样可以只 scale 模型**容量**，而不成比例地增加**推理成本**——线上服务时**只有约 13% 的参数是激活的**。而且和 LLM 的 Scaling Law 一致：论文发现模型越大，推荐效果越好。
 
-### Step 4 —— 用 Reward Model 和 DPO 做迭代式偏好对齐
+### Step 3 —— 用 Reward Model 和 DPO 做迭代式偏好对齐
 
-Next-Token-Prediction 训练只教会模型**模仿**好的 session。要让它去找**更好的** session，OneRec 从 LLM 的 post-training 里搬来了 **DPO**（Direct Preference Optimization）。但推荐场景有个特有的坎：
+Next-Token-Prediction 训练只教会模型**模仿**好的 session。为了让它学会生成**更好的** session，OneRec 从 LLM 的 post-training 里借鉴了 **DPO**（Direct Preference Optimization）。但推荐场景有个特别的困难：
 
-> 在 NLP 里，人工标注可以给出"回答 A 优于回答 B"这样的 pair。但在推荐系统里，**每一次浏览请求只会给用户展示一个列表**——你永远看不到同一个请求的"好版本"和"坏版本"并排摆在一起。**偏好 pair 在日志里根本不存在。**
+> 在 NLP 里，人工标注可以给出"回答 A 优于回答 B"这样的 pair。但在推荐系统里，**每一次请求，推荐系统只会给用户展示一个 item list**——不能同时把"好版本"和"坏版本"都展示给用户。**Preference Pair 在日志里不存在。**
 
-OneRec 的解法：训一个 **Reward Model** 来替代真实的用户反馈，然后用它在循环里不断改进生成模型。
+OneRec 的解法：训练一个 **Reward Model** 来替代真实的用户反馈，然后用它在循环里不断改进生成模型。
 
 #### Reward Model
 
