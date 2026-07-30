@@ -24,7 +24,7 @@ summary = """
 - **Session-wise Generation**：一次生成 5~10 个视频的 item list，而不是一次一个 item。
 - **IPA（Iterative Preference Alignment，迭代式偏好对齐）**：用 Reward Model + DPO 的循环，教模型什么样的 session 用户真的喜欢。
 
-OneRec 在快手 main feed（数亿 DAU）上线，A/B 测试**总观看时长 +1.68%**——在工业级规模上，这是生成式推荐的一个相当大的胜利。OneRec 更是一次很有意思的尝试：用**一个**端到端训练的模型，替掉**整套**多阶段架构——这背后是行业更大的趋势：**少一些人工设计的 pipeline 结构，多给模型一些自由，换取更高的天花板。**
+OneRec 在快手 main feed（数亿 DAU）上线，A/B 测试**总观看时长 +1.68%**——在工业级规模上，这是生成式推荐的一个相当大的胜利。OneRec 也是一次很有意思的尝试：用**一个**端到端训练的模型，替掉**整套**多阶段架构——这背后是行业更大的趋势：少一些人工设计的结构，多给模型一些自由，取得更好的效果。
 
 ## 问题在哪
 
@@ -39,7 +39,7 @@ OneRec 在快手 main feed（数亿 DAU）上线，A/B 测试**总观看时长 +
 - **每一段都是下一段的上限。** 排序只能对召回送上来的东西重新排一遍；被前面丢掉的，就永远回不来了。而且各阶段模型常是独立训练的，误差会层层累积。
 - **生成式推荐只用在了召回上。** TIGER 这类方法把**召回**重新定义成生成 next item ID，但生成之后，还是要用下游的传统排序链路。
 
-**OneRec 的思路：用一个生成式模型替掉整个多阶段架构。** 给定用户历史，**直接生成**最终的 item list——不再有独立的召回、粗排、精排模型。召回和排序，就是同一模型的自回归解码（autoregressive decoding）。
+**OneRec 的思路：用一个生成式模型替掉整个多阶段架构。** 给定用户历史，**直接生成**最终的 item list——不再有独立的召回、粗排、精排模型。召回和排序，就是单个模型的自回归解码（autoregressive decoding）。
 
 ## 方法详解
 
@@ -96,7 +96,7 @@ OneRec 的解法：训练一个 **Reward Model** 来替代真实的用户反馈�
 
 #### Reward Model
 
-Reward Model（RM）给一个候选 session 打分，而且是**多目标同时打分**——它很像传统推荐系统里常用的多任务排序模型（Multi-task Ranking Model）。对于 session `S = {v₁, …, vₘ}` 和用户 `u`：先做 **target-aware fusion**（`eᵢ = vᵢ ⊙ u`，比如对用户行为序列做 target attention），再让这些 item **通过 self-attention 相互交互**，然后 **sum-pooling** 成一个向量，最后过**四个 `Sigmoid(MLP)` 塔**——每个塔预测一个目标：**观看时长（swt）、完播（vtr）、关注（wtr）、点赞（ltr）**。Reward Model 用海量的日志反馈、以 binary cross-entropy loss 预训练。
+Reward Model 给一个候选 session 打分，而且是**多目标同时打分**——它很像传统推荐系统里常用的多任务排序模型（Multi-task Ranking Model）。对于 session `S = {v₁, …, vₘ}` 和用户 `u`：先做 **target-aware fusion**（`eᵢ = vᵢ ⊙ u`，比如对用户行为序列做 target attention），再让这些 item **通过 self-attention 相互交互**，然后 **sum-pooling** 成一个向量，最后过**四个 `Sigmoid(MLP)` 塔**——每个塔预测一个目标：**观看时长（swt）、完播（vtr）、关注（wtr）、点赞（ltr）**。Reward Model 用海量的日志反馈，以 binary cross-entropy loss 预训练。
 
 ![Reward Model 架构：session 里的每个 item vᵢ 先与用户 u 做 target-aware 融合（eᵢ = vᵢ ⊙ u）；得到的 item 向量通过 self-attention 相互交互，再 sum-pooling 成一个向量，最后送进四个 Sigmoid(MLP) 塔，各自预测一个 reward——观看时长（swt）、完播（vtr）、关注（wtr）、点赞（ltr）。](reward-model.svg)
 
@@ -106,7 +106,7 @@ Reward Model（RM）给一个候选 session 打分，而且是**多目标同时�
 
 #### 用 DPO 做迭代式偏好对齐
 
-有了 Reward Model，OneRec 就能自我迭代改进：
+有了 Reward Model，OneRec 就能自我迭代改进。
 
 用生成模型生成候选 session → 用 Reward Model 打分 → 选择偏好 pair → 用 DPO 训练生成模型 → 拿改进后的模型再来一轮：
 
@@ -149,7 +149,7 @@ Reward Model（RM）给一个候选 session 打分，而且是**多目标同时�
 
 - **单个端到端模型，没有多阶段架构的误差累积。** 把召回和排序统一起来，去掉了"每段都是下一段天花板"的瓶颈，也省掉了维护好几个独立训练模型的负担。更重要的是，OneRec 证明了这样一个统一的生成式推荐模型**能在工业级规模上真正上线，并且拿到实打实的收益**。
 - **Session-wise 很有效。** 推荐系统的最终输出本来就是一个 item list，不是一个 item。直接生成 item list——把"选什么"和"怎么排"一起学——效果好于传统的 point-wise 推荐。
-- **MoE 让 scaling 变得可行。** 拿到 LLM 式的 scale up 收益，同时推理只激活约 13% 的参数——正是这一点，让一个大的生成式推荐模型从研究玩具变成快手能上线的服务。
+- **MoE 让 scale up 变得可行。** 拿到 LLM 式的 scale up 收益，同时推理只激活约 13% 的参数——正是这一点，让一个大的生成式推荐模型从研究玩具变成快手能上线的服务。
 - **DPO 式的自我提升对齐，在推荐系统里是有效的。** 针对"推荐系统里拿不到偏好 pair"这一问题，用 Reward Model 驱动的自我提升循环来优化模型，是非常漂亮的创新！它把 LLM 的 post-training 技术移植进推荐系统，而且真的带来了性能提升。
 
 ### OneRec 的缺点
@@ -162,7 +162,13 @@ Reward Model（RM）给一个候选 session 打分，而且是**多目标同时�
 ### 大方向
 
 - **这篇论文为什么重要。** TIGER 让生成式**召回**变得有竞争力；OneRec 是最早做到**一个生成式模型**、在真实的大规模生产系统里**打败一套成熟且调优充分的完整多阶段推荐系统**（召回 + 排序）的工作之一。这是生成式推荐领域的里程碑——它展示了这个新方向的巨大潜力。
-- **行业趋势。** "推荐正在变成一个 LLM 问题"这一思想在 OneRec 系统中达到极致：item 即 token，整条链路就是一个 seq2seq 模型，用 Scaling Law + MoE 加大模型规模，用 RLHF 式的偏好对齐（DPO + Reward Model）提高模型质量。随着推理成本继续下降，可以预期推荐系统里会更多使用这样的生成式结构——而自我提升的对齐循环，很可能成为推荐系统里一项激动人心的关键技术！
+- **行业趋势。** "推荐正在变成一个 LLM 问题"这一思想在 OneRec 系统中达到极致：
+  - item 即 token；
+  - 整条链路就是一个 seq2seq 模型；
+  - 用 Scaling Law + MoE 加大模型规模；
+  - 用 RLHF 式的偏好对齐（DPO + Reward Model）提高模型质量。
+
+  随着推理成本继续下降，可以预期推荐系统里会更多使用这样的生成式结构——而自我提升的对齐循环，很可能成为推荐系统里一项激动人心的关键技术！
 - **把推荐模型 scale up。** OneRec 只是其中一条路，还有很多值得探索。OneRec-1B 模型按 LLM 的标准还非常小，随着 LLM 推理越来越便宜，把模型继续做大，是一条很有希望拿到更大收益的路。
 
 ## 参考文献
