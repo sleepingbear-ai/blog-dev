@@ -154,10 +154,10 @@ Reward Model（RM）给一个候选 session 打分，而且是**多目标同时�
 
 ### OneRec 的缺点
 
-- **服务成本和延迟。** 在自回归 decoder 上做 beam search（size 128），比传统的"召回再排序"链路重得多。要靠 KV-cache 解码、float16、MoE 稀疏化，才勉强跑得动。
-- **Reward Model 成了新的天花板。** IPA 优化的是 **RM 分数**，不是真实用户。RM 的任何偏差（比如过度偏爱观看时长）都会被放大进策略里——这是典型的 reward hacking 风险。
-- **复杂度上升。** 相比传统推荐系统，balanced K-means tokenization + MoE encoder-decoder + Reward Model + 迭代 DPO 循环，是一堆新增的活动零件。
-- **到底是 scale up 的功劳，还是统一架构的功劳？** OneRec 用一个 scale up 之后的统一模型拿到了显著收益，但也可以争辩说：把传统的召回和排序模型分别 scale up，说不定也能拿到其中一部分收益。
+- **服务成本和延迟。** 在 autoregressive decoder 上做 beam search（size 128），比传统的"召回再排序"链路的 infrastructure 成本更高。要靠 KV-cache 解码、float16、MoE 稀疏化，才能实际使用。
+- **Reward Model 成了新的天花板。** IPA 优化的是 **Reward Model 分数**，不是真实用户体验。Reward Model 的任何偏差（比如过度偏爱观看时长）都会被放大进策略（policy）里——这是典型的 reward hacking 风险。
+- **复杂度上升。** 相比传统推荐系统，balanced K-means tokenization + MoE encoder-decoder + Reward Model + 迭代 DPO 循环，是新增的、需要维护的系统部件。
+- **整体收益到底源自模型的 scale up，还是架构的统一？** OneRec 用一个 scale up 之后的统一模型拿到了显著收益，但如果把传统的召回和排序模型分别 scale up，也可能拿到其中一部分收益。
 
 ### 大方向
 
