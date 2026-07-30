@@ -154,16 +154,16 @@ Reward Model（RM）给一个候选 session 打分，而且是**多目标同时�
 
 ### OneRec 的缺点
 
-- **服务成本和延迟。** 在 autoregressive decoder 上做 beam search（size 128），比传统的"召回再排序"链路的 infrastructure 成本更高。要靠 KV-cache 解码、float16、MoE 稀疏化，才能实际使用。
+- **Infrastructure 成本和效率。** 在 autoregressive decoder 上做 beam search（size 128），比传统的"召回再排序"的 infrastructure 成本更高。要靠 KV-cache 解码、float16、MoE 稀疏化，才能实际使用。
 - **Reward Model 成了新的天花板。** IPA 优化的是 **Reward Model 分数**，不是真实用户体验。Reward Model 的任何偏差（比如过度偏爱观看时长）都会被放大进策略（policy）里——这是典型的 reward hacking 风险。
 - **复杂度上升。** 相比传统推荐系统，balanced K-means tokenization + MoE encoder-decoder + Reward Model + 迭代 DPO 循环，是新增的、需要维护的系统部件。
 - **整体收益到底源自模型的 scale up，还是架构的统一？** OneRec 用一个 scale up 之后的统一模型拿到了显著收益，但如果把传统的召回和排序模型分别 scale up，也可能拿到其中一部分收益。
 
 ### 大方向
 
-- **这篇论文为什么重要。** TIGER 让生成式**召回**变得有竞争力；OneRec 是最早做到**一个生成式模型**、在真实的大规模生产系统里**打败一套成熟且调优充分的完整多阶段推荐系统**（召回 + 排序）的工作之一。这正是这个领域一直在等的里程碑——它展示了生成式推荐这个新方向的巨大潜力。
-- **行业趋势。** "推荐正在变成一个 LLM 问题"这个论断，在这里走到了它的逻辑终点：item 即 token，整条链路就是一个序列模型，用 Scaling Law + MoE 换容量，用 RLHF 式的偏好对齐（DPO + Reward Model）换质量。随着推理成本继续下降，可以预期推荐链路里更多的部分会塌缩进这样的生成式结构里——而自我提升的对齐循环，很可能成为推荐系统里一项激动人心的关键技术！
-- **把推荐模型 scale up。** OneRec 只是其中一条路，还有很多值得探索。OneRec-1B 按 LLM 的标准还很小，随着 LLM 推理越来越便宜，把模型继续做大，是一条很有希望拿到更大收益的路。
+- **这篇论文为什么重要。** TIGER 让生成式**召回**变得有竞争力；OneRec 是最早做到**一个生成式模型**、在真实的大规模生产系统里**打败一套成熟且调优充分的完整多阶段推荐系统**（召回 + 排序）的工作之一。这是生成式推荐领域的里程碑——它展示了这个新方向的巨大潜力。
+- **行业趋势。** "推荐正在变成一个 LLM 问题"这一思想在 OneRec 系统中达到极致：item 即 token，整条链路就是一个 seq2seq 模型，用 Scaling Law + MoE 加大模型规模，用 RLHF 式的偏好对齐（DPO + Reward Model）提高模型质量。随着推理成本继续下降，可以预期推荐链路里更多的部分会塌缩进这样的生成式结构里——而自我提升的对齐循环，很可能成为推荐系统里一项激动人心的关键技术！
+- **把推荐模型 scale up。** OneRec 只是其中一条路，还有很多值得探索。OneRec-1B 模型按 LLM 的标准还非常小，随着 LLM 推理越来越便宜，把模型继续做大，是一条很有希望拿到更大收益的路。
 
 ## 参考文献
 
