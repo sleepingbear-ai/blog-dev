@@ -116,11 +116,11 @@ Reward Model（RM）给一个候选 session 打分，而且是**多目标同时�
 
 **生成偏好 pair。** 对每个用户，用当前模型 `OneRec_t` 做推理，**beam search** 出 `N = 128` 个候选 session，再用 Reward Model 打分。**reward 最高的那个当 *chosen***，**最低的那个当 *rejected***——一个（chosen, rejected）偏好 pair 就有了。
 
-**迭代式 DPO 训练。** 每一轮训一个新模型 `OneRec_{t+1}`，从当前的 `OneRec_t` 初始化——而 `OneRec_t` 随即被**冻住，当作 reference model**。对每个偏好 pair，**DPO** loss 推着 `OneRec_{t+1}` 提高 *chosen* session 的概率、压低 *rejected* 的概率，而且两者都是**相对于冻住的 reference** 来衡量的：
+**迭代式 DPO 训练。** 每一轮训一个新模型 `OneRec_{t+1}`，从当前的 `OneRec_t` 初始化——而 `OneRec_t` 随即被**冻住，当作 reference model**。对每个偏好 pair，**DPO** loss 鼓励 `OneRec_{t+1}` 提高生成 *chosen* session 的概率、压低生成 *rejected* 的概率（两者都是**相对于冻住的 reference** 来衡量）：
 
 ![单个偏好 pair 的 DPO loss：负的 log-sigmoid，括号里是 β 乘以（chosen session 在训练模型 P_{t+1} 下与冻住的 reference P_t 下的似然之比取 log），再减去 rejected session 的同一个 log 比值。](dpo-loss.svg)
 
-关键在于，OneRec **并不是只优化 DPO**，而是训练组合 loss：**`L = L_NTP + λ·L_DPO`**——保留 Next-Token-Prediction loss，让模型在学偏好信号的同时，仍然**模仿**好的 session（纯 DPO 会让模型漂走，生成出不合法的 session）。
+有趣的是：OneRec **并不是只优化 DPO 目标**，而是训练组合 loss：**`L = L_NTP + λ·L_DPO`**——保留 Next-Token-Prediction loss，让模型在学 Preference 信号的同时（`L_DPO`），仍然**模仿**生成好的 session（`L_NTP`）。纯 DPO 训练有可能会让模型偏离生成合法 session 的能力。
 
 整个过程是**迭代**的：`OneRec_{t+1}` 成为下一轮的 reference model，重新生成候选和偏好 pair，循环好几轮（`OneRec_1 → OneRec_2 → … → OneRec_T`）——每一代都从上一代**自己的输出**里 bootstrapping，也就是**自我提升（self-improvement）**。为了控制训练成本，只有 **`r_DPO = 1%`** 的训练样本用 `L_DPO`（其余的走普通的 `L_NTP`）。实验显示，**1% 的 DPO 采样比例**平均能拿到**最优效果的 95%**，而算力开销远小于更高的比例。
 
