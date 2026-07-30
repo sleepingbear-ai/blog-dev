@@ -120,9 +120,9 @@ Reward Model（RM）给一个候选 session 打分，而且是**多目标同时�
 
 ![单个偏好 pair 的 DPO loss：负的 log-sigmoid，括号里是 β 乘以（chosen session 在训练模型 P_{t+1} 下与冻住的 reference P_t 下的似然之比取 log），再减去 rejected session 的同一个 log 比值。](dpo-loss.svg)
 
-有趣的是：OneRec **并不是只优化 DPO 目标**，而是训练组合 loss：**`L = L_NTP + λ·L_DPO`**——保留 Next-Token-Prediction loss，让模型在学 Preference 信号的同时（`L_DPO`），仍然**模仿**生成好的 session（`L_NTP`）。纯 DPO 训练有可能会让模型偏离生成合法 session 的能力。
+有意思的是：OneRec **并不是只优化 DPO 目标**，而是训练组合 loss：**`L = L_NTP + λ·L_DPO`**——保留 Next-Token-Prediction loss，让模型在学 Preference 信号的同时（`L_DPO`），仍然**模仿**生成好的 session（`L_NTP`）。纯 DPO 训练有可能会让模型偏离生成合法 session 的能力。
 
-整个过程是**迭代**的：`OneRec_{t+1}` 成为下一轮的 reference model，重新生成候选和偏好 pair，循环好几轮（`OneRec_1 → OneRec_2 → … → OneRec_T`）——每一代都从上一代**自己的输出**里 bootstrapping，也就是**自我提升（self-improvement）**。为了控制训练成本，只有 **`r_DPO = 1%`** 的训练样本用 `L_DPO`（其余的走普通的 `L_NTP`）。实验显示，**1% 的 DPO 采样比例**平均能拿到**最优效果的 95%**，而算力开销远小于更高的比例。
+整个过程是**迭代**的：`OneRec_{t+1}` 成为下一轮的 reference model，重新生成候选和偏好 pair，循环好几轮（`OneRec_1 → OneRec_2 → … → OneRec_T`）——每一代都从上一代**自己的输出**里 bootstrapping，也就是**自我提升（self-improvement）**。为了控制训练成本，只有 **`r_DPO = 1%`** 的training examples用 `L_DPO` loss （其余的用普通的 `L_NTP` loss）。实验显示，**1% 的 DPO 采样比例**平均能拿到**最优效果的 95%**，而算力开销远小于更高的比例。
 
 ## 实验与结果
 
