@@ -126,14 +126,14 @@ Reward Model（RM）给一个候选 session 打分，而且是**多目标同时�
 
 ## 实验与结果
 
-在快手的大规模工业数据集上做离线评测，加上线上 A/B 测试。指标：观看侧 **swt**（session 观看时长）和 **vtr**（完播）；互动侧 **wtr**（关注）和 **ltr**（点赞）。Baseline 覆盖了判别式 point-wise 模型（SASRec、BERT4Rec、FDSA）、生成式 point-wise 模型（TIGER），以及一堆 DPO 变体（IPO、cDPO、rDPO、CPO、simPO、S-DPO）。
+在快手的大规模工业数据集上做离线评测，加上线上 A/B 测试。指标：观看侧 **swt**（session 观看时长）、**vtr**（完播）；互动侧 **wtr**（关注）、**ltr**（点赞）。用来比较的模型包括：判别式 point-wise 模型（SASRec、BERT4Rec、FDSA）、生成式 point-wise 模型（TIGER），以及各种 DPO 变体（IPO、cDPO、rDPO、CPO、simPO、S-DPO）。
 
 主要结论：
 
-- **Session-wise 生成打败 point-wise 生成。** OneRec-1B（不带 IPA）比 TIGER-1B 高 **+1.78% max swt**、**+3.36% max ltr**——说明生成一个连贯的列表，确实优于逐点预测。
-- **一点点偏好对齐，收益巨大。** 只用 **1% 的 DPO** 数据，OneRec-1B+IPA 在 OneRec-1B 之上又拿到 **+4.04% max swt** 和 **+5.43% max ltr**，而且 **IPA 优于所有其他 DPO 变体**。
-- **它像 LLM 一样 scale。** 模型从 0.05B 涨到 1B，精度稳定提升（0.05B→0.1B 提升 +14.45%，之后每一档再涨 5~6%）——而 MoE 设计正是让这件事**付得起钱**的关键。注意：1B 用 LLM 的标准看，还是很小。
-- **线上 A/B（快手主 feed，数亿 DAU）：** OneRec-1B+IPA 带来 **+1.68% 总观看时长**和 **+6.56% 平均播放时长**——在这个体量上，是很实在的收益。IPA 是最后那一脚，而且收益随模型变大而增长：
+- **Session-wise 生成打败 point-wise 生成。** OneRec-1B（不带 IPA）比 TIGER-1B 高 **+1.78% max swt**、**+3.36% max ltr**。
+- **一点点偏好对齐，收益巨大。** 只用 **1% 的 DPO** 数据，OneRec-1B+IPA 在 OneRec-1B（不带 IPA）之上拿到 **+4.04% max swt** 和 **+5.43% max ltr**，而且 **IPA 优于所有其他 DPO 变体**。
+- **OneRec 像 LLM 一样 scale。** 模型从 0.05B 涨到 1B，精度稳定提升（0.05B→0.1B 提升 +14.45%，之后每一档再涨 5~6%）——而 MoE 设计正是 scale up **效率**的关键。注意：1B 用 LLM 的标准看，还是很小。
+- **线上 A/B（快手 main feed，数亿 DAU）：** OneRec-1B+IPA 带来 **+1.68% 总观看时长**和 **+6.56% 平均播放时长**——在这个体量上，是很实在的收益，而且收益随模型变大而增长：
 
 | 模型 | 总观看时长 | 平均播放时长 |
 |:---|:---:|:---:|
@@ -141,7 +141,7 @@ Reward Model（RM）给一个候选 session 打分，而且是**多目标同时�
 | OneRec-1B | +1.21% | +5.01% |
 | **OneRec-1B + IPA** | **+1.68%** | **+6.56%** |
 
-*[论文](https://arxiv.org/abs/2502.18965) Table 2：线上 A/B 中相对快手现有多阶段推荐系统的绝对提升。*
+*[论文](https://arxiv.org/abs/2502.18965) Table 2：线上 A/B 测试中相对快手现有多阶段推荐系统的绝对提升。*
 
 ## 我的一些想法
 
