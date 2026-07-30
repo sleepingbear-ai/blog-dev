@@ -106,7 +106,9 @@ Reward Model（RM）给一个候选 session 打分，而且是**多目标同时�
 
 #### 用 DPO 做迭代式偏好对齐
 
-有了 RM，OneRec 就能自我迭代改进：生成候选 session → 变成偏好 pair → 用 DPO 训练 → 拿改进后的模型再来一轮：
+有了 Reward Model，OneRec 就能自我迭代改进：
+
+用生成模型生成候选 session → 用 Reward Model 打分 → 选择偏好 pair → 用 DPO 训练生成模型 → 拿改进后的模型再来一轮：
 
 ![图 2b：迭代式偏好对齐循环。当前模型 OneRec_t 在训练数据上 beam search 出 N 个候选 session；Reward Model 给每个打分；reward 最高的作为 chosen、最低的作为 rejected；在这个 pair 上用 DPO loss 训出 OneRec_{t+1}，再送回去做下一轮自我提升。](fig3-ipa.png)
 
