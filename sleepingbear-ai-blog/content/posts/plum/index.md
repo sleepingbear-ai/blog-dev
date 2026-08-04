@@ -31,11 +31,11 @@ PLUM（YouTube & DeepMind）把一个通用 **Gemini LLM** 改造成**生成式�
 * **输入：** 用户的观看历史 + Context
 * **输出：** 从十亿量级的视频库里，选出几百个用户可能感兴趣的候选视频
 
-过去十年，主流答案一直是 **LEM（Large Embedding Model，大 embedding 模型）**：给每个 item（视频）ID 学一个 embedding，再给用户生成一个 embedding，然后用用户 embedding 去搜索 item embedding 的 **ANN（Approximate Nearest Neighbor）index**。论文提到，YouTube 传统线上召回模型的 embedding 层 vocabulary 规模是 `O(10M)`（即 `O(10M)` 个 item embedding），占了**模型参数的 99.6%**——剩下的整个神经网络只有 **0.4%**。
+主流答案一直是 **LEM（Large Embedding Model，大 embedding 模型）**：给每个 item（视频）ID 学一个 embedding，再给用户生成一个 embedding，然后用用户 embedding 去搜索 item embedding 的 **ANN（Approximate Nearest Neighbor）index**。论文提到，YouTube 传统线上召回模型的 embedding 层 vocabulary 规模是 `O(10M)`（即 `O(10M)` 个 item embedding），占了**模型参数的 99.6%**——剩下的整个神经网络只有 **0.4%**。
 
 ![(a) LEM 把 99.6% 的参数放在 item-ID embedding table 里，喂给一个很薄的神经网络，靠点积在 ANN index 里检索；它的 scale up 方式是把表做大，并且需要每天几十亿条训练样本。(b) PLUM 把每个视频 tokenize 成 Semantic ID，喂给一个由 Gemini-1.5 热启动的 decoder-only LLM，90% 的参数在网络里，直接用 beam search 生成 Semantic ID，不需要额外 index。](lem-vs-plum.svg)
 
-*参数预算就是全部故事：LEM 靠把查找表做大来 scale，PLUM 靠把网络做大来 scale。（本文绘制，依据论文 3.1.1 节。）*
+*LEM 靠把Embedding Table做大来 scale，PLUM 靠把神经网络做大来 scale。（为本文绘制）*
 
 这个失衡正是论文点出的核心局限：LEM 非常擅长**记忆**用户–item 的交互，但参数全堆在 embedding table 上，就压制了更深、更复杂的网络本可以带来的收益。它的 scaling 方式是**把表加大**——而 LLM 的 scaling 方式是**把网络加大**，在紧凑的 token 上做推理。前者是加行数，不是加推理能力。
 
