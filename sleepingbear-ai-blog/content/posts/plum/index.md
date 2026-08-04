@@ -4,11 +4,11 @@ draft = false
 title = 'YouTube PLUM 解释和思考：把 Gemini LLM 改造成工业级生成式召回模型'
 tags = ['plum', '推荐系统', '生成式推荐', '生成式召回', 'semanticid', 'rqvae', 'llm', 'gemini', 'youtube', 'googledeepmind', 'ai学习']
 summary = """
-  *PLUM（Google DeepMind & YouTube）把一个预训练好的 Gemini LLM 改造成了线上推荐模型：先把每个视频 tokenize 成 Semantic ID，把这些 ID 加进 LLM 的词表，继续预训练让 LLM 学会"视频"这个新 modality，最后 fine-tune 它直接生成下一个视频的 ID。*
+  *PLUM（Google DeepMind & YouTube）把一个预训练好的 Gemini LLM 改造成了线上推荐模型：先把每个视频 tokenize 成 Semantic ID，把这些 ID 加进 LLM 的 vocabulary，继续预训练让 LLM 学会"视频"这个新 modality，最后 fine-tune 它直接生成下一个视频的 ID。*
 """
 +++
 
-*PLUM（Google DeepMind & YouTube）把一个预训练好的 Gemini LLM 改造成了线上推荐模型：先把每个视频 tokenize 成 Semantic ID，把这些 ID 加进 LLM 的词表，继续预训练让 LLM 学会"视频"这个新 modality，最后 fine-tune 它直接生成下一个视频的 ID。*
+*PLUM（Google DeepMind & YouTube）把一个预训练好的 Gemini LLM 改造成了线上推荐模型：先把每个视频 tokenize 成 Semantic ID，把这些 ID 加进 LLM 的 vocabulary，继续预训练让 LLM 学会"视频"这个新 modality，最后 fine-tune 它直接生成下一个视频的 ID。*
 
 论文：**[PLUM: Adapting Pre-trained Language Models for Industrial-scale Generative Recommendations](https://arxiv.org/abs/2510.07784)**（He et al., Google DeepMind & YouTube, 2025 年 10 月）
 
@@ -19,7 +19,7 @@ summary = """
 PLUM 是 YouTube 和 DeepMind 把一个预训练 **Gemini LLM** 改造成**生成式召回模型（generative retrieval）**、并真正上线服务数十亿用户的工作。三个阶段：
 
 1. **Item tokenization** —— 每个视频分配一个 **Semantic ID**（一个很短的离散 token tuple），由改进版 RQ-VAE 生成，论文称之为 **SID-v2**（SID-v1 见我之前的 [TIGER 解读](../tiger-generative-retrieval/)）。
-2. **继续预训练（CPT，Continued Pre-Training）** —— 把 SID token 加进 Gemini checkpoint 的词表，在"用户观看历史 + 视频元数据"各占一半的数据上继续预训练，让模型把视频 SID 学成一个和文本对齐的新 **modality**。
+2. **继续预训练（CPT，Continued Pre-Training）** —— 把 SID token 加进 Gemini checkpoint 的 vocabulary，在"用户观看历史 + 视频元数据"各占一半的数据上继续预训练，让模型把视频 SID 学成一个和文本对齐的新 **modality**。
 3. **推荐 fine-tuning（SFT）** —— 让 LLM 自回归地生成用户下一个会互动的视频的 SID，loss 按 reward 加权。
 
 结果：它打赢了一个**被高度优化过的**传统 embedding table 召回模型，而训练量只有 **每天约 2.5 亿条样本（对方是几十亿条）**，算力 **不到 0.55x FLOPs**。
@@ -31,7 +31,7 @@ PLUM 是 YouTube 和 DeepMind 把一个预训练 **Gemini LLM** 改造成**生�
 **输入：** 用户的观看历史 + 推荐上下文。
 **输出：** 从十亿量级的视频库里，选出几百个用户可能感兴趣的候选视频。
 
-过去十年，主流答案一直是 **LEM（Large Embedding Model，大 embedding 模型）**：给每个 item（视频）ID 学一个 embedding，再给用户生成一个 embedding，然后拿用户 embedding 去 item embedding 的 **ANN（近似最近邻）索引**里检索。论文提到，YouTube 线上召回模型的 embedding 层词表规模是 `O(10M)`（即 `O(10M)` 个 item embedding），占了**模型参数的 99.6%**——剩下的整个神经网络只有 **0.4%**。
+过去十年，主流答案一直是 **LEM（Large Embedding Model，大 embedding 模型）**：给每个 item（视频）ID 学一个 embedding，再给用户生成一个 embedding，然后拿用户 embedding 去 item embedding 的 **ANN（近似最近邻）索引**里检索。论文提到，YouTube 线上召回模型的 embedding 层 vocabulary 规模是 `O(10M)`（即 `O(10M)` 个 item embedding），占了**模型参数的 99.6%**——剩下的整个神经网络只有 **0.4%**。
 
 ![(a) LEM 把 99.6% 的参数放在 item-ID embedding table 里，喂给一个很薄的神经网络，靠点积在 ANN 索引里检索；它的 scale up 方式是把表做大，并且需要每天几十亿条训练样本。(b) PLUM 把每个视频 tokenize 成 Semantic ID，喂给一个由 Gemini-1.5 热启动的 decoder-only LLM，90% 的参数在网络里，直接用 beam search 生成 Semantic ID，不需要额外索引。](lem-vs-plum.svg)
 
@@ -49,7 +49,7 @@ LLM 的成功催生了 **生成式推荐（Generative Recommendation）** 这个
 
 ## 方法详解
 
-![PLUM 的三个阶段。阶段一，用 SID-v2 做 item tokenization：在融合后的多模态 embedding 上跑 RQ-VAE，配合多分辨率 codebook、progressive masking 和共现对比 loss，把每个视频变成一个 codeword tuple。阶段二，继续预训练：把 SID token 加入 LLM 词表，在 50% 用户行为数据和 50% 视频元数据上训练约 2600 亿 token、100 万步。阶段三，任务 fine-tuning：用 reward 加权的 loss 和实时上下文特征预测下一个点击视频的 Semantic ID，线上用 beam search 生成候选视频。已在 YouTube 的长视频和 Shorts 两个场景部署。](pipeline.svg)
+![PLUM 的三个阶段。阶段一，用 SID-v2 做 item tokenization：在融合后的多模态 embedding 上跑 RQ-VAE，配合多分辨率 codebook、progressive masking 和共现对比 loss，把每个视频变成一个 codeword tuple。阶段二，继续预训练：把 SID token 加入 LLM vocabulary，在 50% 用户行为数据和 50% 视频元数据上训练约 2600 亿 token、100 万步。阶段三，任务 fine-tuning：用 reward 加权的 loss 和实时上下文特征预测下一个点击视频的 Semantic ID，线上用 beam search 生成候选视频。已在 YouTube 的长视频和 Shorts 两个场景部署。](pipeline.svg)
 
 *PLUM 的流程（本文绘制，概括论文第 2 节）。*
 
@@ -82,9 +82,9 @@ PLUM 在这个配方上做了几处改动：
 
 ### Step 2 —— 继续预训练（CPT）：教会 LLM 一个新 modality
 
-一个通用的 Gemini LLM 并不懂 YouTube 的推荐领域知识——它只是一个带自己文本词表的语言模型。那怎么教会它？PLUM 的做法很巧妙：**把视频的 Semantic ID 扩进 LLM 的词表**。
+一个通用的 Gemini LLM 并不懂 YouTube 的推荐领域知识——它只是一个带自己文本 vocabulary 的语言模型。那怎么教会它？PLUM 的做法很巧妙：**把视频的 Semantic ID 扩进 LLM 的 vocabulary**。
 
-但只是把 SID token 加进词表是不够的，还得**教会 LLM 这些 SID token 的含义**——也就是让它们和已有的文本 token 对齐。PLUM 的办法是在合成的「视频 SID + 文本 token」序列上继续做 **next-token-prediction** 预训练，数据 50/50 混合：
+但只是把 SID token 加进 vocabulary 是不够的，还得**教会 LLM 这些 SID token 的含义**——也就是让它们和已有的文本 token 对齐。PLUM 的办法是在合成的「视频 SID + 文本 token」序列上继续做 **next-token-prediction** 预训练，数据 50/50 混合：
 
 * **用户行为数据** —— 观看历史，附带额外特征。
 * **视频元数据语料** —— 把 SID 和它的文本绑定起来的自然语言句子，取自视频标题、描述、字幕和频道名。
@@ -131,14 +131,14 @@ Loss 是标准的自回归最大似然目标（在目标 SID 的各个 token 上
 
 | 指标 | 长视频（LFV） | Shorts |
 |:---|:---:|:---:|
-| 有效词表规模 | 2.60x | 13.24x |
+| 有效 vocabulary 规模 | 2.60x | 13.24x |
 | CTR | 1.42x | 1.33x |
 | 每次曝光观看时长 | 0.72x | 1.13x |
 | 每次曝光完播比例 | 1.32x | 1.03x |
 
-*[论文](https://arxiv.org/abs/2510.07784) Table 2。"有效词表规模" = 覆盖 95% 曝光所需的不同视频数量。*
+*[论文](https://arxiv.org/abs/2510.07784) Table 2。"有效 vocabulary 规模" = 覆盖 95% 曝光所需的不同视频数量。*
 
-最亮眼的是**有效词表规模**——Shorts 上 13x。PLUM 推荐的视频覆盖了库里**宽得多**的一片区域，说明它的泛化更好；而 baseline LEM 明显更集中在热门视频上。两个场景的 CTR 也都有明显提升。
+最亮眼的是**有效 vocabulary 规模**——Shorts 上 13x。PLUM 推荐的视频覆盖了库里**宽得多**的一片区域，说明它的泛化更好；而 baseline LEM 明显更集中在热门视频上。两个场景的 CTR 也都有明显提升。
 
 **线上 A/B 测试**（在最好的现有召回模型之上叠加 PLUM 召回，配额对齐，记为 LEM+）：
 
