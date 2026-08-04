@@ -84,7 +84,7 @@ PLUM 在这个方法上做了几处改动，论文把改进后的 tokenizer 称�
 
 一个通用的 Gemini LLM 并不懂 YouTube 的推荐领域知识——它只是一个带自己文本 vocabulary 的语言模型。那怎么教会它？PLUM 的做法很巧妙：**把视频的 Semantic ID 扩进 LLM 的 vocabulary**。
 
-但只是把 SID token 加进 vocabulary 是不够的，还得**教会 LLM 这些 SID token 的含义**——也就是让它们和已有的文本 token 对齐。PLUM 的办法是在人工合成的「视频 SID + 文本 token」序列上继续做 **next-token-prediction** 预训练，数据 50/50 混合：
+但只是把 SID token 加进 vocabulary 是不够的，还得**教会 LLM 这些 SID token 的含义**——也就是让它们和已有的文本 token 对齐。PLUM 的办法是在人工合成的「视频 SID + 文本 token」序列上继续做 **Next Token Prediction（NTP）** 预训练，数据 50/50 混合：
 
 * **用户行为数据** —— 观看历史，附带额外特征。
 * **视频元数据** —— 把 SID 和它的文本绑定起来的自然语言句子，取自视频标题、描述、字幕和频道名。
@@ -105,23 +105,23 @@ PLUM 在这个方法上做了几处改动，论文把改进后的 tokenizer 称�
 
 ### Step 3 —— 监督微调（SFT）做生成式召回
 
-CPT 给出的是一个"看得懂 SID"的模型；SFT 把它专门化成召回模型：**给定用户和 Context，生成他下一个会互动的视频的 SID。**
+CPT 给出的是一个"看得懂 SID"的模型；SFT 把它专门化成召回模型：**给定用户和 Context，生成她下一个会互动的视频的 SID。**
 
 ![论文 Figure 2：面向下一个视频推荐的生成式召回。输入 prompt 是用户观看历史（Semantic ID 序列，穿插地区、用户、设备等特征）以及 Context 视频的频道、标题和 SID；decoder-only LLM 自回归地逐 token 生成下一个视频的 Semantic ID（`<A5> <B25> … <H55> <EOS>`）。](fig2-generative-retrieval.png)
 
 *生成式召回：decoder-only LLM 读入 prompt，生成下一个视频的 Semantic ID。（[论文](https://arxiv.org/abs/2510.07784) Figure 2，He et al., 2025。）*
 
-输入 prompt 是多种 modality 的混合——交错的 SID token、文本特征，以及为数值特征定制的 token。特别地，这里加入了 CPT 阶段没有的**实时 Context**。模型学习的是：给定用户 Context 和历史，预测日志里**被点击视频**的 SID token。
+输入 prompt 是多种 modality 的混合序列——交错的 SID token、文本特征，以及为数值特征定制的 token。特别地，这里加入了 CPT 阶段没有的**实时 Context**。模型学习的是：给定用户历史和 Context，预测 user logs 里**被点击视频**的 SID token。
 
-Loss 是标准的自回归最大似然目标（在目标 SID 的各个 token 上），但**按 reward 加权**：
+Loss 是标准的 Next Token Prediction (NTP) loss（预测目标被点击视频 SID 的 token 序列），但**按 reward 加权**：
 
 ![SFT loss：对目标 SID 的各个 token t 求和取负——reward r(user, v_click) 乘以在 Context、History 和前缀 token sid_<t 条件下 token sid_t 的 log 概率。](sft-loss.svg)
 
-`r(user, v_click)` 是为每次点击手工设计的 reward——所以一次带来满意观看的点击，权重高于一次误触。训练样本按这个 reward 权重采样，然后在 loss 里等权重对待。
+`r(user, v_click)` 是为点击手工设计的 reward——一次带来满意观看的点击，权重高于一次误触。训练样本按这个 reward 权重采样，然后在 loss 里等权重对待。
 
 **线上服务时**，PLUM 用 **beam search** 从模型解码出多个 SID，每个 SID 映射回一个真实视频，作为召回候选。原则上模型可能**幻觉**出一个不对应任何视频的 SID，但 SFT 之后幻觉率 **< 5%**——真实存在但可控。
 
-而且没有 ANN index：**模型本身就是 index。**
+这种 generative retrieval 没有 ANN index：**模型本身就是 index。**
 
 ## 实验与结果
 
