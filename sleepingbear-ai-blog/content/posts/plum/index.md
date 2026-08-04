@@ -37,19 +37,19 @@ PLUM（YouTube & DeepMind）把一个通用 **Gemini LLM** 改造成**生成式�
 
 *LEM 靠把 embedding table 做大来 scale，PLUM 靠把神经网络做大来 scale（本图专为本文绘制）*
 
-LEM 的核心局限正是论文点出的这个失衡：LEM 非常擅长**记忆**用户–item 的交互，但参数全堆在 embedding table 上，就压制了更深、更复杂的神经网络本可以带来的收益。它的 scaling 方式是**把 embedding table 加大**——而 LLM 的 scaling 方式是**把神经网络加大**，在更少的 token 上做推理。前者是加记忆规模，不是加推理能力。
+LEM 的核心局限正是论文点出的这个参数比例失衡：LEM 非常擅长**记忆** user–item 的交互，但参数全堆在 embedding table 上，就压制了更深、更复杂的神经网络本可以带来的收益。它的 scaling 方式是**把 embedding table 加大**——而 LLM 的 scaling 方式是**把神经网络加大**，在更少的 token 上做推理。前者是加记忆规模，不是加推理能力。
 
 LLM 的成功催生了 **生成式推荐（Generative Recommendation）** 这个行业趋势——用 LLM 来构建推荐模型。LLM 的世界知识和推理能力，有可能带来更聪明、更相关的推荐。但把 LLM 改造成推荐模型并不容易。
 
 ### 为什么不能直接拿一个现成的 LLM 来做推荐？
 
-最主要的困难是 **domain gap（领域差距）**：LLM 没有在用户行为数据和目标 item 库上预训练过，所以它很难从用户行为里推断偏好，也很难判断 item 质量的细微差别。结果就是，直接把现成 LLM 用于推荐，即使在很小的公开数据集上也存在持续的效果差距（[Hou et al., 2024](https://arxiv.org/abs/2305.08845)）。
+最主要的困难是 **domain gap**：LLM 没有在用户行为数据和目标 item 库上预训练过，所以它很难从用户行为里推断偏好，也很难判断 item 质量的细微差别。研究表明，直接把现成的 LLM 用于推荐，即使在很小的公开数据集上也存在持续的效果差距（[Hou et al., 2024](https://arxiv.org/abs/2305.08845)）。
 
-**PLUM 的答案：** 教会一个预训练 LLM 一个新的 modality——**带语义的视频 ID**——以及领域知识。把输入（用户观看历史和上下文）表示成视频 token 和文本 token 混合的序列，让 LLM 基于这个序列**生成下一个视频的 ID** 作为推荐结果。
+**PLUM 的答案：** 教会一个通用 LLM 一个新的 modality——**带语义的视频 ID**——以及领域知识。把输入（用户观看历史和 Context）表示成视频 token 和文本 token 混合的序列，让 LLM 基于这个序列**生成下一个视频的 ID** 作为推荐结果。
 
 ## 方法详解
 
-![PLUM 的三个阶段。阶段一，用 SID-v2 做 item tokenization：在融合后的多模态 embedding 上跑 RQ-VAE，配合多分辨率 codebook、progressive masking 和共现对比 loss，把每个视频变成一个 codeword tuple。阶段二，继续预训练：把 SID token 加入 LLM vocabulary，在 50% 用户行为数据和 50% 视频元数据上训练约 2600 亿 token、100 万步。阶段三，任务 fine-tuning：用 reward 加权的 loss 和实时上下文特征预测下一个点击视频的 Semantic ID，线上用 beam search 生成候选视频。已在 YouTube 的长视频和 Shorts 两个场景部署。](pipeline.svg)
+![PLUM 的三个阶段。阶段一，用 SID-v2 做 item tokenization：在融合后的多模态 embedding 上跑 RQ-VAE，配合多分辨率 codebook、progressive masking 和共现对比 loss，把每个视频变成一个 codeword tuple。阶段二，继续预训练：把 SID token 加入 LLM vocabulary，在 50% 用户行为数据和 50% 视频元数据上训练约 2600 亿 token、100 万步。阶段三，任务 fine-tuning：用 reward 加权的 loss 和实时 Context 特征预测下一个点击视频的 Semantic ID，线上用 beam search 生成候选视频。已在 YouTube 的长视频和 Shorts 两个场景部署。](pipeline.svg)
 
 *PLUM 的流程（本文绘制，概括论文第 2 节）。*
 
@@ -105,13 +105,13 @@ PLUM 在这个配方上做了几处改动：
 
 ### Step 3 —— 监督微调（SFT）做生成式召回
 
-CPT 给出的是一个"看得懂 SID"的模型；SFT 把它专门化成召回模型：**给定用户和上下文，生成他下一个会互动的视频的 SID。**
+CPT 给出的是一个"看得懂 SID"的模型；SFT 把它专门化成召回模型：**给定用户和 Context，生成他下一个会互动的视频的 SID。**
 
-![论文 Figure 2：面向下一个视频推荐的生成式召回。输入 prompt 是用户观看历史（Semantic ID 序列，穿插地区、用户、设备等特征）以及上下文视频的频道、标题和 SID；decoder-only LLM 自回归地逐 token 生成下一个视频的 Semantic ID（`<A5> <B25> … <H55> <EOS>`）。](fig2-generative-retrieval.png)
+![论文 Figure 2：面向下一个视频推荐的生成式召回。输入 prompt 是用户观看历史（Semantic ID 序列，穿插地区、用户、设备等特征）以及 Context 视频的频道、标题和 SID；decoder-only LLM 自回归地逐 token 生成下一个视频的 Semantic ID（`<A5> <B25> … <H55> <EOS>`）。](fig2-generative-retrieval.png)
 
 *生成式召回：decoder-only LLM 读入 prompt，生成下一个视频的 Semantic ID。（[论文](https://arxiv.org/abs/2510.07784) Figure 2，He et al., 2025。）*
 
-输入 prompt 是多种 modality 的混合——交错的 SID token、文本特征，以及为数值特征定制的 token。特别地，这里加入了 CPT 阶段没有的**实时上下文**。模型学习的是：给定用户上下文和历史，预测日志里**被点击视频**的 SID token。
+输入 prompt 是多种 modality 的混合——交错的 SID token、文本特征，以及为数值特征定制的 token。特别地，这里加入了 CPT 阶段没有的**实时 Context**。模型学习的是：给定用户 Context 和历史，预测日志里**被点击视频**的 SID token。
 
 Loss 是标准的自回归最大似然目标（在目标 SID 的各个 token 上），但**按 reward 加权**：
 
