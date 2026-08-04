@@ -51,19 +51,19 @@ LLM 的成功催生了 **生成式推荐（Generative Recommendation）** 这个
 
 ![PLUM 的三个阶段。阶段一，用 SID-v2 做 item tokenization：在融合后的多模态 embedding 上跑 RQ-VAE，配合多分辨率 codebook、progressive masking 和共现对比 loss，把每个视频变成一个 codeword tuple。阶段二，继续预训练：把 SID token 加入 LLM vocabulary，在 50% 用户行为数据和 50% 视频元数据上训练约 2600 亿 token、100 万步。阶段三，任务 fine-tuning：用 reward 加权的 loss 和实时 Context 特征预测下一个点击视频的 Semantic ID，线上用 beam search 生成候选视频。已在 YouTube 的长视频和 Shorts 两个场景部署。](pipeline.svg)
 
-*PLUM 的流程（本文绘制，概括论文第 2 节）。*
+*PLUM 的流程（本图专为本文绘制，概括论文第 2 节）*
 
-### Step 1 —— 把每个视频 tokenize 成 Semantic ID（SID-v2）
+### Step 1 —— 把每个视频 tokenize 成 Semantic ID
 
-Semantic ID 是从 item 内容里导出的一个离散 codeword tuple，由 **RQ-VAE（Residual-Quantized VAE）** 生成：把 item 编码成一个稠密向量，用 codebook 量化，取残差，再用下一层 codebook 量化，如此往复。每一层选中的 codeword 就是 ID 的一个 token。（RQ-VAE 的详细解释见我的 [TIGER 解读](../tiger-generative-retrieval/)。）
+Semantic ID 是从 item 内容生成的一个离散 codeword tuple，由 **RQ-VAE（Residual-Quantized VAE）** 模型生成：输入一个 item content embedding，用 codebook 量化，取残差，再用下一层 codebook 量化，如此往复。每一层选中的 codeword 就是 ID 的一个 token。（RQ-VAE 的详细解释见我的 [TIGER 解读](../tiger-generative-retrieval/)。）
 
-PLUM 在这个配方上做了几处改动：
+PLUM 在这个方法上做了几处改动，论文把改进后的 tokenizer 称为 **SID-v2**：
 
 ![论文 Figure 1：SID-v2 模型。两个多模态视频 embedding 分别由各自的 DNN encoder 编码，再拼接、投影成一个稠密的语义 embedding；残差量化器在 5 个 codebook 上把它压缩成 Semantic ID。这个 ID 同时被训练去重建原始输入（reconstruction loss）以及拉近共现视频（contrastive loss）。](fig1-sid-v2.svg)
 
 *SID-v2 模型：双 encoder、残差量化，加上重建 loss + 对比 loss。（[论文](https://arxiv.org/abs/2510.07784) Figure 1，He et al., 2025。）*
 
-* **融合多模态输入。** 一个视频的语义存在于标题、画面和音频里。TIGER 只量化了**单个**（基于文本的）内容 embedding；PLUM 输入一组多模态 embedding `{x_1 … x_M}`，各自用独立 encoder 编码，然后拼接并投影成一个融合向量 `z` 再做量化。
+* **融合多模态输入。** 一个视频的语义存在于标题、画面和音频里。TIGER 只量化了**单个**（基于文本的）content embedding；PLUM 输入一组多模态 embedding `{x_1 … x_M}`，各自用独立 encoder 编码，然后拼接并投影成一个融合向量 `z` 再做量化。
 
 * **多分辨率 codebook。** TIGER 每一层用一样大的 codebook，这其实很浪费：越深的层编码的是越小、越低熵的残差，却分到同样多的 codeword，导致大部分 SID 空间稀疏空置。OneRec 注意到了类似问题，改用 **balanced K-means** 而不是 RQ-VAE 来生成 SID（详见我的 [OneRec 解读](../onerec/)）。PLUM 的做法是让每层 codebook 按几何级数缩小——`2048 / 2^(l−1)`——这样第一层最有区分度，整个 SID 也更紧凑高效。
 
@@ -71,9 +71,9 @@ PLUM 在这个配方上做了几处改动：
 
   `semantic_id_in_training = ProgressiveMasking(semantic_id from RQ-VAE)`
 
-  **Progressive masking** 随机保留 SID 的一个前缀、掩掉其余部分，训练中只用这个前缀作为 Semantic ID。比如一个 4 层的 SID `(A5, B25, C12, D8)` 可能被截断成 `(A5, B25)`。这迫使 Semantic ID 的靠前层级**自己就要有意义**，从而在残差量化中形成更严格、也更可解释的层级。这和神经网络训练里的 **Dropout** 很像：随机丢掉一部分表示，逼着每一部分都自己携带有用信号。
+  **Progressive masking** 随机保留 SID 的一个前缀、掩掉其余部分，训练中只用这个前缀作为 Semantic ID。比如一个 4 层的 SID `(A5, B25, C12, D8)` 可能被截断成 `(A5, B25)`。这迫使 Semantic ID 的靠前层级**自己就要有意义**，从而在残差量化中形成更严格、也更可解释的层级。这和神经网络训练里的 **Dropout** 很像：随机丢掉一部分表示，逼着每一部分都自己学习有用信号。
 
-* **共现对比正则（co-occurrence contrastive regularization）。** 在 TIGER 里，SID 是纯内容 embedding 的量化结果。为了让 SID 更贴近用户行为，PLUM 用一个对比 loss 把协同过滤（collaborative filtering）信号直接注入量化器，鼓励模型给**在同一次观看 session 中共现**的视频生成相近的 SID。
+* **共现对比正则（co-occurrence contrastive regularization）。** 在 TIGER 里，SID 是纯 content embedding 的量化结果。为了让 SID 更贴近用户行为，PLUM 用一个对比 loss 把协同过滤（collaborative filtering）信号直接注入量化器，鼓励模型给**在同一次观看 session 中共现**的视频生成相近的 SID。
 
 * **三个训练 loss。** RQ-VAE 模型端到端训练，最小化 `L = L_recon + L_rq + L_con`：
     * **`L_con` —— 对比 loss：** 上面说的共现正则，PLUM 新增的部分。
