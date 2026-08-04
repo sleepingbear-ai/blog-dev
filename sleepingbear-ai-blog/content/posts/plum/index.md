@@ -16,15 +16,15 @@ summary = """
 
 ## TL;DR
 
-PLUM 是 YouTube 和 DeepMind 把一个预训练 **Gemini LLM** 改造成**生成式召回模型（generative retrieval）**、并真正上线服务数十亿用户的工作。三个阶段：
+PLUM（YouTube & DeepMind）把一个通用 **Gemini LLM** 改造成**生成式召回模型（generative retrieval）**，并真正上线服务数十亿用户。整体流程：
 
-1. **Item tokenization** —— 每个视频分配一个 **Semantic ID**（一个很短的离散 token tuple），由改进版 RQ-VAE 生成，论文称之为 **SID-v2**（SID-v1 见我之前的 [TIGER 解读](../tiger-generative-retrieval/)）。
-2. **继续预训练（CPT，Continued Pre-Training）** —— 把 SID token 加进 Gemini checkpoint 的 vocabulary，在"用户观看历史 + 视频元数据"各占一半的数据上继续预训练，让模型把视频 SID 学成一个和文本对齐的新 **modality**。
-3. **推荐 fine-tuning（SFT）** —— 让 LLM 自回归地生成用户下一个会互动的视频的 SID，loss 按 reward 加权。
+1. **Item tokenization** —— 给每个视频一个 **Semantic ID**（token tuple），由改进版 RQ-VAE 生成，论文称之为 **SID-v2**（SID-v1 见我之前的 [TIGER 解读](../tiger-generative-retrieval/)）。
+2. **继续预训练（CPT，Continued Pre-Training）** —— 把 SID token 加进 Gemini LLM 的 vocabulary，在"用户观看历史 + 视频元数据"各占一半的数据上继续预训练，让模型把视频 SID 学成一个和文本对齐的新 **modality**。
+3. **推荐系统 fine-tuning（SFT）** —— 把 LLM 改造成推荐模型：让 LLM 自回归地生成用户下一个会互动的视频的 SID（Next SID Prediction），loss 按推荐系统 reward 加权。
 
 结果：它打赢了一个**被高度优化过的**传统 embedding table 召回模型，而训练量只有 **每天约 2.5 亿条样本（对方是几十亿条）**，算力 **不到 0.55x FLOPs**。
 
-这是一个很重要、也很让人兴奋的结果：它给出了一条把通用 LLM 改造去解决推荐问题的可行路径，同时也是最早在 YouTube 这个量级上线的生成式召回推荐系统之一。
+这是一个重要的结果：PLUM给出了一条改造通用 LLM 去解决推荐问题的可行路径，同时也是最早在 YouTube 这个量级上线的生成式召回推荐系统之一。
 
 ## 问题在哪：推荐系统里的召回
 
