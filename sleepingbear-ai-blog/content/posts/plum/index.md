@@ -28,8 +28,8 @@ PLUM（YouTube & DeepMind）把一个通用 **Gemini LLM** 改造成**生成式�
 
 ## 问题在哪：推荐系统里的召回
 
-**输入：** 用户的观看历史 + 推荐上下文。
-**输出：** 从十亿量级的视频库里，选出几百个用户可能感兴趣的候选视频。
+* **输入：** 用户的观看历史 + Context
+* **输出：** 从十亿量级的视频库里，选出几百个用户可能感兴趣的候选视频
 
 过去十年，主流答案一直是 **LEM（Large Embedding Model，大 embedding 模型）**：给每个 item（视频）ID 学一个 embedding，再给用户生成一个 embedding，然后拿用户 embedding 去 item embedding 的 **ANN（近似最近邻）索引**里检索。论文提到，YouTube 线上召回模型的 embedding 层 vocabulary 规模是 `O(10M)`（即 `O(10M)` 个 item embedding），占了**模型参数的 99.6%**——剩下的整个神经网络只有 **0.4%**。
 
