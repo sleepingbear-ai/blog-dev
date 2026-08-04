@@ -237,4 +237,6 @@ Loss 是标准的 Next Token Prediction (NTP) loss（预测目标被点击视频
 
 #ai #推荐系统 #生成式推荐 #生成式召回 #plum #semanticid #rqvae #llm #gemini #youtube #人工智能 #ai学习 #大模型
 
+如果你觉得本文有帮助，欢迎[点赞关注](https://www.rednote.com/user/profile/61d67d89000000001000c76b)支持！
+
 If you like this post, consider star [the repo](https://github.com/sleepingbear-ai/sleepingbear-ai.github.io).
