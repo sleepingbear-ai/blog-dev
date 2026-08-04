@@ -35,9 +35,9 @@ PLUM（YouTube & DeepMind）把一个通用 **Gemini LLM** 改造成**生成式�
 
 ![(a) LEM 把 99.6% 的参数放在 item-ID embedding table 里，喂给一个很薄的神经网络，靠点积在 ANN index 里检索；它的 scale up 方式是把表做大，并且需要每天几十亿条训练样本。(b) PLUM 把每个视频 tokenize 成 Semantic ID，喂给一个由 Gemini-1.5 热启动的 decoder-only LLM，90% 的参数在网络里，直接用 beam search 生成 Semantic ID，不需要额外 index。](lem-vs-plum.svg)
 
-*LEM 靠把Embedding Table做大来 scale，PLUM 靠把神经网络做大来 scale。（为本文绘制）*
+*LEM 靠把 embedding table 做大来 scale，PLUM 靠把神经网络做大来 scale（本图专为本文绘制）*
 
-这个失衡正是论文点出的核心局限：LEM 非常擅长**记忆**用户–item 的交互，但参数全堆在 embedding table 上，就压制了更深、更复杂的网络本可以带来的收益。它的 scaling 方式是**把表加大**——而 LLM 的 scaling 方式是**把网络加大**，在紧凑的 token 上做推理。前者是加行数，不是加推理能力。
+LEM 的核心局限正是论文点出的这个失衡：LEM 非常擅长**记忆**用户–item 的交互，但参数全堆在 embedding table 上，就压制了更深、更复杂的神经网络本可以带来的收益。它的 scaling 方式是**把 embedding table 加大**——而 LLM 的 scaling 方式是**把神经网络加大**，在更少的 token 上做推理。前者是加记忆规模，不是加推理能力。
 
 LLM 的成功催生了 **生成式推荐（Generative Recommendation）** 这个行业趋势——用 LLM 来构建推荐模型。LLM 的世界知识和推理能力，有可能带来更聪明、更相关的推荐。但把 LLM 改造成推荐模型并不容易。
 
