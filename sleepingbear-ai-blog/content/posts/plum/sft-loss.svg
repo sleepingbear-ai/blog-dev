@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 110" font-family="Georgia,'Times New Roman',serif">
+  <rect x="0.5" y="0.5" width="859" height="109" rx="10" fill="#ffffff" stroke="#e2e2e2" stroke-width="1"/>
+  <text x="430" y="64" text-anchor="middle" font-size="22" fill="#1c3a5e">
+    <tspan font-style="italic">L</tspan><tspan font-size="13" baseline-shift="-26%">SFT</tspan><tspan>&#160;&#160;=&#160;&#160;&#8722;&#160;&#160;</tspan><tspan font-size="31">&#931;</tspan><tspan font-size="13" font-style="italic" baseline-shift="-40%">t</tspan><tspan>&#160;&#160;</tspan><tspan font-style="italic">r</tspan><tspan>(user,&#160;</tspan><tspan font-style="italic">v</tspan><tspan font-size="13" baseline-shift="-26%">click</tspan><tspan>)&#160;&#160;&#183;&#160;&#160;log&#160;</tspan><tspan font-style="italic">P</tspan><tspan>(sid</tspan><tspan font-size="13" font-style="italic" baseline-shift="-26%">t</tspan><tspan>&#160;|&#160;Context,&#160;History,&#160;sid</tspan><tspan font-size="13" baseline-shift="-26%">&lt;t</tspan><tspan>)</tspan>
+  </text>
+</svg>

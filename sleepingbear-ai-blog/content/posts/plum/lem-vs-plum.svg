@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" font-family="'Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#555"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="760" height="400" fill="#ffffff"/>
+
+  <!-- ===== LEFT: LEM ===== -->
+  <text x="190" y="30" text-anchor="middle" font-size="15.5" font-weight="700" fill="#333">(a) Large Embedding Model (LEM)</text>
+
+  <rect x="70" y="48" width="240" height="36" rx="8" fill="#e6e6e6" stroke="#999" stroke-width="1.1"/>
+  <text x="190" y="71" text-anchor="middle" font-size="13" fill="#333">user context + watch history</text>
+  <line x1="190" y1="84" x2="190" y2="104" stroke="#555" stroke-width="1.4" marker-end="url(#arr)"/>
+
+  <rect x="40" y="106" width="300" height="118" rx="9" fill="#fbdcdc" stroke="#d98080" stroke-width="1.3"/>
+  <text x="190" y="130" text-anchor="middle" font-size="14" font-weight="700" fill="#8a2a2a">Huge embedding tables</text>
+  <text x="190" y="150" text-anchor="middle" font-size="12.5" fill="#8a2a2a">O(10M) item-ID vocabulary</text>
+  <!-- table stripes -->
+  <g fill="#f0a8a8" stroke="#d98080" stroke-width="0.8">
+    <rect x="62" y="162" width="20" height="46" rx="2"/><rect x="86" y="162" width="20" height="46" rx="2"/>
+    <rect x="110" y="162" width="20" height="46" rx="2"/><rect x="134" y="162" width="20" height="46" rx="2"/>
+    <rect x="158" y="162" width="20" height="46" rx="2"/><rect x="182" y="162" width="20" height="46" rx="2"/>
+    <rect x="206" y="162" width="20" height="46" rx="2"/><rect x="230" y="162" width="20" height="46" rx="2"/>
+    <rect x="254" y="162" width="20" height="46" rx="2"/><rect x="278" y="162" width="20" height="46" rx="2"/>
+  </g>
+  <text x="190" y="221" text-anchor="middle" font-size="12" font-style="italic" fill="#8a2a2a">99.6% of all parameters</text>
+
+  <line x1="190" y1="224" x2="190" y2="244" stroke="#555" stroke-width="1.4" marker-end="url(#arr)"/>
+  <rect x="120" y="246" width="140" height="34" rx="8" fill="#cfe3f7" stroke="#6aa3d5" stroke-width="1.2"/>
+  <text x="190" y="268" text-anchor="middle" font-size="12.5" fill="#1c3a5e">thin neural net · 0.4%</text>
+
+  <line x1="190" y1="280" x2="190" y2="300" stroke="#555" stroke-width="1.4" marker-end="url(#arr)"/>
+  <rect x="90" y="302" width="200" height="34" rx="8" fill="#e6e6e6" stroke="#999" stroke-width="1.1"/>
+  <text x="190" y="324" text-anchor="middle" font-size="12.5" fill="#333">dot product → ANN index</text>
+
+  <text x="190" y="362" text-anchor="middle" font-size="12.5" fill="#8a2a2a" font-weight="700">Scaling = bigger tables</text>
+  <text x="190" y="380" text-anchor="middle" font-size="12" fill="#666">memorizes; needs billions of examples/day</text>
+
+  <!-- divider -->
+  <line x1="380" y1="40" x2="380" y2="386" stroke="#ddd" stroke-width="1.5" stroke-dasharray="5,5"/>
+
+  <!-- ===== RIGHT: PLUM ===== -->
+  <text x="570" y="30" text-anchor="middle" font-size="15.5" font-weight="700" fill="#333">(b) PLUM generative retrieval</text>
+
+  <rect x="450" y="48" width="240" height="36" rx="8" fill="#e6e6e6" stroke="#999" stroke-width="1.1"/>
+  <text x="570" y="71" text-anchor="middle" font-size="13" fill="#333">user context + watch history</text>
+  <line x1="570" y1="84" x2="570" y2="104" stroke="#555" stroke-width="1.4" marker-end="url(#arr)"/>
+
+  <rect x="450" y="106" width="240" height="40" rx="8" fill="#fdf0c9" stroke="#e0b84c" stroke-width="1.3"/>
+  <text x="570" y="131" text-anchor="middle" font-size="12.5" fill="#7a5a12" font-weight="700">each video → Semantic ID tokens</text>
+  <line x1="570" y1="146" x2="570" y2="166" stroke="#555" stroke-width="1.4" marker-end="url(#arr)"/>
+
+  <rect x="430" y="168" width="280" height="112" rx="9" fill="#d9f0d9" stroke="#7fbf7f" stroke-width="1.3"/>
+  <text x="570" y="192" text-anchor="middle" font-size="14" font-weight="700" fill="#2a6b2a">Decoder-only LLM</text>
+  <text x="570" y="212" text-anchor="middle" font-size="12.5" fill="#2a6b2a">warm-started from Gemini-1.5 MoE</text>
+  <!-- stacked layers -->
+  <g fill="#aedeae" stroke="#7fbf7f" stroke-width="0.8">
+    <rect x="470" y="224" width="200" height="12" rx="3"/>
+    <rect x="470" y="240" width="200" height="12" rx="3"/>
+    <rect x="470" y="256" width="200" height="12" rx="3"/>
+  </g>
+  <text x="570" y="299" text-anchor="middle" font-size="12" font-style="italic" fill="#2a6b2a">90% of params in the network</text>
+
+  <line x1="570" y1="280" x2="570" y2="300" stroke="#555" stroke-width="1.4" marker-end="url(#arr)" opacity="0"/>
+  <line x1="570" y1="304" x2="570" y2="322" stroke="#555" stroke-width="1.4" marker-end="url(#arr)"/>
+  <rect x="450" y="324" width="240" height="34" rx="8" fill="#e6e6e6" stroke="#999" stroke-width="1.1"/>
+  <text x="570" y="346" text-anchor="middle" font-size="12.5" fill="#333">beam-search SIDs → videos (no index)</text>
+
+  <text x="570" y="380" text-anchor="middle" font-size="12.5" fill="#2a6b2a" font-weight="700">Scaling = bigger network · 250M examples/day</text>
+</svg>
