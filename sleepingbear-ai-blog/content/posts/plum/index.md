@@ -28,8 +28,8 @@ PLUM（YouTube & DeepMind）把一个通用 **Gemini LLM** 改造成**生成式�
 
 ## 问题在哪：推荐系统里的召回
 
-* **输入：** 用户的观看历史 + Context
-* **输出：** 从十亿量级的视频库里，选出几百个用户可能感兴趣的候选视频
+* **输入**：用户的观看历史 + Context
+* **输出**：从十亿量级的视频库里，选出几百个用户可能感兴趣的候选视频
 
 主流答案一直是 **LEM（Large Embedding Model，大 embedding 模型）**：给每个 item（视频）ID 学一个 embedding，再给用户生成一个 embedding，然后用用户 embedding 去搜索 item embedding 的 **ANN（Approximate Nearest Neighbor）index**。论文提到，YouTube 传统线上召回模型的 embedding 层 vocabulary 规模是 `O(10M)`（即 `O(10M)` 个 item embedding），占了**模型参数的 99.6%**——剩下的整个神经网络只有 **0.4%**。
 
@@ -63,9 +63,9 @@ PLUM 在这个方法上做了几处改动，论文把改进后的 tokenizer 称�
 
 *SID-v2 模型：双 encoder、残差量化，加上 reconstruction loss + contrastive loss。（[论文](https://arxiv.org/abs/2510.07784) Figure 1，He et al., 2025。）*
 
-* **融合多模态输入。** 一个视频的语义存在于标题、画面和音频里。TIGER 只量化了**单个**（基于文本的）content embedding；PLUM 输入一组多模态 embedding `{x_1 … x_M}`，各自用独立 encoder 编码，然后拼接并投影成一个融合向量 `z` 再做量化。
+* **融合多模态输入**：一个视频的语义存在于标题、画面和音频里。TIGER 只量化了**单个**（基于文本的）content embedding；PLUM 输入一组多模态 embedding `{x_1 … x_M}`，各自用独立 encoder 编码，然后拼接并投影成一个融合向量 `z` 再做量化。
 
-* **多分辨率 codebook。** TIGER 每一层用一样大的 codebook，这其实很浪费：越深的层编码的是越小、越低熵的残差，却分到同样多的 codeword，导致大部分 SID 空间稀疏空置。OneRec 注意到了类似问题，改用 **balanced K-means** 而不是 RQ-VAE 来生成 SID（详见我的 [OneRec 解读](../onerec/)）。PLUM 的做法是让每层 codebook 按几何级数缩小——`2048 / 2^(l−1)`——这样第一层最有区分度，整个 SID 也更紧凑高效。
+* **多分辨率 codebook**：TIGER 每一层用一样大的 codebook，这其实很浪费：越深的层编码的是越小、越低熵的残差，却分到同样多的 codeword，导致大部分 SID 空间稀疏空置。OneRec 注意到了类似问题，改用 **balanced K-means** 而不是 RQ-VAE 来生成 SID（详见我的 [OneRec 解读](../onerec/)）。PLUM 的做法是让每层 codebook 按几何级数缩小——`2048 / 2^(l−1)`——这样第一层最有区分度，整个 SID 也更紧凑高效。
 
   与之配套的是 **progressive masking（渐进式掩码）**，在训练中强制这个层级结构：
 
@@ -73,9 +73,9 @@ PLUM 在这个方法上做了几处改动，论文把改进后的 tokenizer 称�
 
   **Progressive masking** 随机保留 SID 的一个前缀、掩掉其余部分，训练中只用这个前缀作为 Semantic ID。比如一个 4 层的 SID `(A5, B25, C12, D8)` 可能被截断成 `(A5, B25)`。这迫使 Semantic ID 的靠前层级**自己就要有意义**，从而在残差量化中形成更严格、也更可解释的层级。这和神经网络训练里的 **Dropout** 很像：随机丢掉一部分表示，逼着每一部分都自己学习有用信号。
 
-* **co-occurrence contrastive regularization。** 在 TIGER 里，SID 是纯 content embedding 的量化结果。为了让 SID 更贴近用户行为，PLUM 用一个 contrastive loss 把协同过滤（collaborative filtering）信号直接注入量化器，鼓励模型给**在同一次观看 session 中共现**的视频生成相近的 SID。
+* **co-occurrence contrastive regularization**：在 TIGER 里，SID 是纯 content embedding 的量化结果。为了让 SID 更贴近用户行为，PLUM 用一个 contrastive loss 把协同过滤（collaborative filtering）信号直接注入量化器，鼓励模型给**在同一次观看 session 中共现**的视频生成相近的 SID。
 
-* **三个训练 loss。** RQ-VAE 模型端到端训练，最小化 `L = L_recon + L_rq + L_con`：
+* **三个训练 loss**：RQ-VAE 模型端到端训练，最小化 `L = L_recon + L_rq + L_con`：
     * **`L_con` —— co-occurrence contrastive loss：** PLUM 新增的部分。
     * **`L_recon` —— reconstruction loss：** 把量化后的 SID 解码回原始输入 embedding，让量化的信息损失最小。
     * **`L_rq` —— 量化（codebook + commitment）loss：** 训练 codebook 和 encoder 达成一致，让每一层的 codeword 忠实表示它的残差。（`L_recon` 和 `L_rq` 是标准 RQ-VAE loss，公式和详细解释见我的 [TIGER 解读](../tiger-generative-retrieval/)。）
@@ -86,8 +86,8 @@ PLUM 在这个方法上做了几处改动，论文把改进后的 tokenizer 称�
 
 但只是把 SID token 加进 vocabulary 是不够的，还得**教会 LLM 这些 SID token 的含义**——也就是让它们和已有的文本 token 对齐。PLUM 的办法是在人工合成的「视频 SID + 文本 token」序列上继续做 **Next Token Prediction（NTP）** 预训练，数据 50/50 混合：
 
-* **用户行为数据** —— 观看历史，附带额外特征。
-* **视频元数据** —— 把 SID 和它的文本绑定起来的自然语言句子，取自视频标题、描述、字幕和频道名。
+* **用户行为数据**：观看历史，附带额外特征。
+* **视频元数据**：把 SID 和它的文本绑定起来的自然语言句子，取自视频标题、描述、字幕和频道名。
 
 两者都按下面的 schema 序列化成 token 序列：
 
@@ -184,11 +184,11 @@ Loss 是标准的 Next Token Prediction (NTP) loss（预测目标被点击视频
 
 *[论文](https://arxiv.org/abs/2510.07784) Table 5。*
 
-这张表值得仔细读，它是论文里最有价值、也最有意思的一张：
+这张表值得仔细读，它是论文里最有价值、也最有意思的数据：
 
-* **CPT 的价值。** R1 与 CR1（或 R2 与 CR2）之间差距很大。而且一个 CPT checkpoint 可以复用到很多下游 fine-tuning 任务上。
-* **预训练 LLM 的价值。** 无论有没有 CPT，从预训练 LLM 初始化都稳定优于随机初始化。这个优势可能来自预训练 LLM 的自然语言知识。
-* **两者叠加时收益递减（CR1 → CR2）。** 在已经做了 CPT 的情况下，再用预训练 LLM 初始化只带来 **+0.01** 的 Recall@10（0.27 → 0.28）；而在没有 CPT 时（R1 → R2）是 **+0.04**。也就是说，一旦 CPT 把模型适配到了领域数据上，预训练权重的贡献就小很多——**CPT 已经把 LLM 初始化能带来的大部分东西给学到了**。这个观察挺有意思，因为我们本来会期待 LLM 里的通用知识能帮上更多忙。一个可能的原因是，这里用的 LLM 还是偏小。
+* **CPT 的价值**：R1 与 CR1（或 R2 与 CR2）之间差距很大。而且一个 CPT checkpoint 可以被很多下游 fine-tuning 任务复用。
+* **预训练 LLM 的价值**：无论有没有 CPT，从预训练 LLM 初始化都稳定优于随机初始化。这个优势可能来自预训练 LLM 的自然语言知识。
+* **两者叠加时收益递减（CR1 → CR2）**：在已经做了 CPT 的情况下，再用预训练 LLM 初始化只带来 **+0.01** 的 Recall@10（0.27 → 0.28）；而在没有 CPT 时（R1 → R2）是 **+0.04**。也就是说，一旦 CPT 把模型适配到了领域数据上，预训练权重的贡献就小很多——**CPT 已经把 LLM 初始化能带来的大部分东西给学到了**。这个观察挺有意思，因为我们本来会期待 LLM 里的通用知识能帮上更多忙。一个可能的原因是，这里用的 LLM 还是偏小。
 
 **Scaling 研究。** 在 MoE-110M / 370M / 900M / 3B 上，训练 loss 在 Iso-FLOPS 下呈漂亮的 **幂律（power law）**，召回 Recall@10 也随算力持续提升；算力预算越大，最优模型尺寸越大。
 
@@ -198,23 +198,23 @@ Loss 是标准的 Next Token Prediction (NTP) loss（预测目标被点击视频
 
 ### 优势与启发
 
-* **一套把 LLM 改造成推荐模型的框架。** PLUM 给出了一个有效的方法把预训练 LLM 改造成生成式推荐模型。而 *tokenize → 继续预训练 → fine-tune* 这个结构，其实是一份**可迁移的 playbook**：把 LLM 引入任何一个多模态领域去解决领域任务，都可以照着做——不只是生成式推荐。
+* **一套把 LLM 改造成推荐模型的框架**：PLUM 给出了一个有效的方法把预训练 LLM 改造成生成式推荐模型。而 *tokenize → 继续预训练 → fine-tune* 这个结构，其实是一份**可迁移的 playbook**：把 LLM 引入任何一个多模态领域去解决领域任务，都可以照着做——不只是生成式推荐。
 
-* **更好的 Semantic ID。** 几处 tokenizer 上的创新共同带来了更高质量的 Semantic ID：注入协同过滤信号的**共现 contrastive loss**、**多分辨率 codebook**、**progressive masking**。好的 Semantic ID 是任何生成式推荐系统的地基。
+* **更好的 Semantic ID**：几处 tokenizer 上的创新共同带来了更高质量的 Semantic ID：注入协同过滤信号的**共现 contrastive loss**、**多分辨率 codebook**、**progressive masking**。好的 Semantic ID 是任何生成式推荐系统的地基。
 
-* **训练效率改变了经济账。** 每天少用约 20 倍的训练样本，才让"用 LLM 做推荐"在这里变得负担得起。这是"item token 架构比大 embedding table 更便宜"的一个有力论据。
+* **训练效率改变了经济账**：每天少用约 20 倍的训练样本，才让"用 LLM 做推荐"在这里变得负担得起。这是"item token 架构比大 embedding table 更便宜"的一个有力论据。
 
-* **一个真正部署上线的 LLM 推荐系统。** PLUM 把预训练 Gemini LLM 变成了线上推荐 LLM，并在 YouTube 的量级上部署。作为最早在生产环境部署的生成式推荐 LLM 之一，这是一个令人兴奋的工程成就。
+* **一个真正部署上线的 LLM 推荐系统**：PLUM 把预训练 Gemini LLM 变成了线上推荐 LLM，并在 YouTube 的量级上部署。作为最早在生产环境部署的生成式推荐 LLM 之一，这是一个令人兴奋的工程成就。
 
 ### 不足与可能的后续工作
 
-* **Serving 和基础设施成本。** 这不是 PLUM 独有的问题，但 LLM 推理 + beam search 的线上成本，可能仍然高于传统 LEM + ANN 检索。
+* **Serving 和基础设施成本**：这不是 PLUM 独有的问题，但 LLM 推理 + beam search 的线上成本，可能仍然高于传统 LEM + ANN 检索。
 
-* **长视频上的每次曝光观看时长下降（0.72x）。** 召回更多样、更长尾的视频，似乎在长视频上带来了更短的观看。一个可能的补救是：在 SFT 的 reward 和采样里给观看时长更高的权重。
+* **长视频上的每次曝光观看时长下降（0.72x）**：召回更多样、更长尾的视频，似乎在长视频上带来了更短的观看。一个可能的补救是：在 SFT 的 reward 和采样里给观看时长更高的权重。
 
-* **省内存的 SFT（LoRA / QLoRA）。** PLUM 的 SFT 是全参数微调。值得研究的是，省内存的方法（[LoRA](https://arxiv.org/abs/2106.09685)、[QLoRA](https://arxiv.org/abs/2305.14314)）在训练成本和效果之间是否有更好的权衡。
+* **省内存的 SFT（LoRA / QLoRA）**：PLUM 的 SFT 是全参数微调。值得研究的是，省内存的方法（[LoRA](https://arxiv.org/abs/2106.09685)、[QLoRA](https://arxiv.org/abs/2305.14314)）在训练成本和效果之间是否有更好的权衡。
 
-* **Scaling law 和更大的 LLM。** MoE-3B 没能打赢 MoE-900M。后续工作如果能解决这个 scalability 问题、把更大的 LLM 用进推荐，或许能把更多"LLM 的魔法"带进生成式推荐。
+* **Scaling law 和更大的 LLM**：MoE-3B 没能打赢 MoE-900M。后续工作如果能解决这个 scalability 问题、把更大的 LLM 用进推荐，或许能把更多"LLM 的魔法"带进生成式推荐。
 
 ### 大方向
 
