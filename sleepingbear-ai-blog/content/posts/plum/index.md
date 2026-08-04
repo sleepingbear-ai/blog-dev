@@ -2,13 +2,13 @@
 date = '2026-08-04T10:00:00-07:00'
 draft = false
 title = 'YouTube PLUM 解释和思考：把 Gemini LLM 改造成工业级生成式召回模型'
-tags = ['plum', '推荐系统', '生成式推荐', '生成式召回', 'semanticid', 'rqvae', 'llm', 'gemini', 'youtube', 'googledeepmind', 'ai学习']
+tags = ['ai', '推荐系统', '生成式推荐', '生成式召回', 'plum', 'semanticid', 'rqvae', 'llm', 'gemini', 'youtube', '人工智能', 'ai学习', '大模型']
 summary = """
-  *PLUM（Google DeepMind & YouTube）把一个预训练好的 Gemini LLM 改造成了线上推荐模型：先把每个视频 tokenize 成 Semantic ID，把这些 ID 加进 LLM 的 vocabulary，继续预训练让 LLM 学会"视频"这个新 modality，最后 fine-tune 它直接生成下一个视频的 ID。*
+  *PLUM（Google DeepMind & YouTube）把一个通用的 Gemini LLM 改造成了线上推荐模型：先把每个视频 tokenize 成 Semantic ID，把这些 ID 加进 LLM 的 vocabulary，继续预训练让 LLM 学会"视频"这个新 modality，最后 fine-tune 它直接生成下一个视频的 ID。*
 """
 +++
 
-*PLUM（Google DeepMind & YouTube）把一个预训练好的 Gemini LLM 改造成了线上推荐模型：先把每个视频 tokenize 成 Semantic ID，把这些 ID 加进 LLM 的 vocabulary，继续预训练让 LLM 学会"视频"这个新 modality，最后 fine-tune 它直接生成下一个视频的 ID。*
+*PLUM（Google DeepMind & YouTube）把一个通用的 Gemini LLM 改造成了线上推荐模型：先把每个视频 tokenize 成 Semantic ID，把这些 ID 加进 LLM 的 vocabulary，继续预训练让 LLM 学会"视频"这个新 modality，最后 fine-tune 它直接生成下一个视频的 ID。*
 
 论文：**[PLUM: Adapting Pre-trained Language Models for Industrial-scale Generative Recommendations](https://arxiv.org/abs/2510.07784)**（He et al., Google DeepMind & YouTube, 2025 年 10 月）
 
@@ -16,7 +16,7 @@ summary = """
 
 ## TL;DR
 
-PLUM（YouTube & DeepMind）把一个通用 **Gemini LLM** 改造成**生成式召回模型（generative retrieval）**，并真正上线服务数十亿用户。整体流程：
+PLUM（Google DeepMind & YouTube）把一个通用的 **Gemini LLM** 改造成**生成式召回模型（generative retrieval）**，并真正上线服务数十亿用户。整体流程：
 
 1. **Item tokenization** —— 给每个视频一个 **Semantic ID**（token tuple），由改进版 RQ-VAE 生成，论文称之为 **SID-v2**（SID-v1 见我之前的 [TIGER 解读](../tiger-generative-retrieval/)）。
 2. **继续预训练（CPT：Continued Pre-Training）** —— 把 SID token 加进 Gemini LLM 的 vocabulary，在"用户观看历史 + 视频元数据"各占一半的数据上继续预训练，让模型把视频 SID 学成一个和文本对齐的新 **modality**。
@@ -49,7 +49,7 @@ LLM 的成功催生了 **生成式推荐（Generative Recommendation）** 这个
 
 ## 方法详解
 
-![PLUM 的三个阶段。阶段一，用 SID-v2 做 item tokenization：在融合后的多模态 embedding 上跑 RQ-VAE，配合多分辨率 codebook、progressive masking 和共现 contrastive loss，把每个视频变成一个 codeword tuple。阶段二，继续预训练：把 SID token 加入 LLM vocabulary，在 50% 用户行为数据和 50% 视频元数据上训练约 2600 亿 token、100 万步。阶段三，任务 fine-tuning：用 reward 加权的 loss 和实时 Context 特征预测下一个点击视频的 Semantic ID，线上用 beam search 生成候选视频。已在 YouTube 的长视频和 Shorts 两个场景部署。](pipeline.svg)
+![PLUM 的三个阶段。阶段一，用 SID-v2 做 item tokenization：在融合后的多模态 embedding 上跑 RQ-VAE，配合多分辨率 codebook、progressive masking 和 co-occurrence contrastive loss，把每个视频变成一个 codeword tuple。阶段二，继续预训练：把 SID token 加入 LLM vocabulary，在 50% 用户行为数据和 50% 视频元数据上训练约 2600 亿 token、100 万步。阶段三，任务 fine-tuning：用 reward 加权的 loss 和实时 Context 特征预测下一个点击视频的 Semantic ID，线上用 beam search 生成候选视频。已在 YouTube 的长视频和 Shorts 两个场景部署。](pipeline.svg)
 
 *PLUM 的流程（本图专为本文绘制，概括论文第 2 节）*
 
@@ -76,9 +76,9 @@ PLUM 在这个方法上做了几处改动，论文把改进后的 tokenizer 称�
 * **co-occurrence contrastive regularization**：在 TIGER 里，SID 是纯 content embedding 的量化结果。为了让 SID 更贴近用户行为，PLUM 用一个 contrastive loss 把协同过滤（collaborative filtering）信号直接注入量化器，鼓励模型给**在同一次观看 session 中共现**的视频生成相近的 SID。
 
 * **三个训练 loss**：RQ-VAE 模型端到端训练，最小化 `L = L_recon + L_rq + L_con`：
-    * **`L_con` —— co-occurrence contrastive loss：** PLUM 新增的部分。
-    * **`L_recon` —— reconstruction loss：** 把量化后的 SID 解码回原始输入 embedding，让量化的信息损失最小。
-    * **`L_rq` —— 量化（codebook + commitment）loss：** 训练 codebook 和 encoder 达成一致，让每一层的 codeword 忠实表示它的残差。（`L_recon` 和 `L_rq` 是标准 RQ-VAE loss，公式和详细解释见我的 [TIGER 解读](../tiger-generative-retrieval/)。）
+    * **`L_con` —— co-occurrence contrastive loss**：PLUM 新增的部分。
+    * **`L_recon` —— reconstruction loss**：把量化后的 SID 解码回原始输入 embedding，让量化的信息损失最小。
+    * **`L_rq` —— 量化（codebook + commitment）loss**：训练 codebook 和 encoder 达成一致，让每一层的 codeword 忠实表示它的残差。（`L_recon` 和 `L_rq` 是标准 RQ-VAE loss，公式和详细解释见我的 [TIGER 解读](../tiger-generative-retrieval/)。）
 
 ### Step 2 —— 继续预训练（CPT：Continued Pre-Training）：教会 LLM 一个新 modality
 
@@ -202,7 +202,7 @@ Loss 是标准的 Next Token Prediction (NTP) loss（预测目标被点击视频
 
 * **更好的 Semantic ID**：几个 RQ-VAE tokenizer 上的创新共同带来了更高质量的 Semantic ID：加入协同过滤信号的 **co-occurrence contrastive loss**、**多分辨率 codebook**、**progressive masking**。好的 Semantic ID 是任何生成式推荐系统的重要基础。
 
-* **训练效率改变了经济账**：每天少用约 20 倍的训练样本，才让"用 LLM 做推荐"在这里变得可以负担。这是 *item token 架构比大 embedding table 更便宜*的一个有力论据。
+* **训练效率改变了经济账**：每天少用约 20 倍的训练样本，才让"用 LLM 做推荐"在这里变得可以负担。这是"item token 架构比大 embedding table 更便宜"的一个有力论据。
 
 * **一个真正部署上线的 LLM 推荐系统**：PLUM 把预训练 Gemini LLM 变成了线上推荐 LLM，并在 YouTube 的量级上部署。作为最早在生产环境部署的生成式推荐 LLM 之一，这是一个令人兴奋的工程成就。
 
