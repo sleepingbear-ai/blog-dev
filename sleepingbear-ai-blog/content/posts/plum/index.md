@@ -45,7 +45,7 @@ LLM 的成功催生了 **生成式推荐（Generative Recommendation）** 这个
 
 最主要的困难是 **domain gap**：LLM 没有在用户行为数据和目标 item 库上预训练过，所以它很难从用户行为里推断偏好，也很难判断 item 质量的细微差别。研究表明，直接把现成的 LLM 用于推荐，即使在很小的公开数据集上也存在持续的效果差距（[Hou et al., 2024](https://arxiv.org/abs/2305.08845)）。
 
-**PLUM 的答案：** 教会一个通用 LLM 一个新的 modality——**带语义的视频 ID**——以及领域知识。把输入（用户观看历史和 Context）表示成视频 token 和文本 token 混合的序列，让 LLM 基于这个序列**生成下一个视频的 ID** 作为推荐结果。
+**PLUM 的答案**：教会一个通用 LLM 一个新的 modality——**带语义的视频 ID**——以及领域知识。把输入（用户观看历史和 Context）表示成视频 token 和文本 token 混合的序列，让 LLM 基于这个序列**生成下一个视频的 ID** 作为推荐结果。
 
 ## 方法详解
 
@@ -155,7 +155,7 @@ Loss 是标准的 Next Token Prediction (NTP) loss（预测目标被点击视频
 
 **训练效率**：900M MoE 每天训练约 **2.5 亿条样本**；LEM 每天要训练**几十亿条**。尽管 PLUM 的 dense parameter 是 LEM 的 100 倍，它的总训练成本却相当——因为收敛快得多，只用了 **不到 0.55x 的 FLOPs**。
 
-**SID-v2 Ablation 实验** —— 证明每一项 RQ-VAE 改进都有用，其中 co-occurrence contrastive loss 最关键：
+**SID-v2 Ablation 实验**：证明每一项 RQ-VAE 改进都有用，其中 co-occurrence contrastive loss 最关键：
 
 | SID 模型 | SID 唯一性 | Video Recall@10 |
 |:---|:---:|:---:|
@@ -190,39 +190,39 @@ Loss 是标准的 Next Token Prediction (NTP) loss（预测目标被点击视频
 * **预训练 LLM 的价值**：无论有没有 CPT，从预训练 LLM 初始化都稳定优于随机初始化。这个优势可能来自预训练 LLM 的自然语言知识。
 * **两者叠加时收益递减（CR1 → CR2）**：在已经做了 CPT 的情况下，再用预训练 LLM 初始化只带来 **+0.01** 的 Recall@10（0.27 → 0.28）；而在没有 CPT 时（R1 → R2）是 **+0.04**。也就是说，一旦 CPT 把模型适配到了领域数据上，预训练权重的贡献就小很多——**CPT 已经把 LLM 初始化能带来的大部分东西给学到了**。这个观察挺有意思，因为我们本来会期待 LLM 里的通用知识能帮上更多忙。一个可能的原因是，这里用的 LLM 还是偏小。
 
-**Scaling 研究。** 在 MoE-110M / 370M / 900M / 3B 上，训练 loss 在 Iso-FLOPS 下呈漂亮的 **幂律（power law）**，召回 Recall@10 也随算力持续提升；算力预算越大，最优模型尺寸越大。
+**Scaling 研究**：在 MoE-110M / 370M / 900M / 3B 上，训练 loss 在 Iso-FLOPS 下呈漂亮的 **幂律（power law）**，召回 Recall@10 也随算力持续提升；算力预算越大，最优模型尺寸越大。
 
-有一个作者自己点出的意外：**MoE-3B 在测试的训练预算下没有打赢 MoE-900M**。他们归因于训练设置——所有模型分到同样的训练资源、batch size 按打满 HBM（高带宽显存）来定，这就使得大模型的 batch size 更小，MoE-3B 只训练了 **0.57 个 epoch** 的数据。他们给出的教训是：**compute-optimal 的训练需要训练数据和模型规模一起放大。**
+有一个作者自己点出的意外：**MoE-3B 在测试的训练预算下没有打赢 MoE-900M**。他们归因于训练设置——所有模型分到同样的训练资源、batch size 按打满 HBM（高带宽显存）来定，这就使得大模型的 batch size 更小，MoE-3B 只训练了 **0.57 个 epoch** 的数据。他们给出的教训是：**compute-optimal 的训练需要把训练数据和模型规模一起 scaling up。**
 
 ## 我的一些想法
 
 ### 优势与启发
 
-* **一套把 LLM 改造成推荐模型的框架**：PLUM 给出了一个有效的方法把预训练 LLM 改造成生成式推荐模型。而 *tokenize → 继续预训练 → fine-tune* 这个结构，其实是一份**可迁移的 playbook**：把 LLM 引入任何一个多模态领域去解决领域任务，都可以照着做——不只是生成式推荐。
+* **把 LLM 改造成推荐模型的框架**：PLUM 给出了一个有效的方法把预训练 LLM 改造成生成式推荐模型。而 **tokenize → 继续预训练 → fine-tune** 这个结构，其实是一个**可复制的方法论**：把 LLM 引入任何一个多模态领域去解决领域任务，都可以照着做——并不仅限于生成式推荐。
 
-* **更好的 Semantic ID**：几处 tokenizer 上的创新共同带来了更高质量的 Semantic ID：注入协同过滤信号的**共现 contrastive loss**、**多分辨率 codebook**、**progressive masking**。好的 Semantic ID 是任何生成式推荐系统的地基。
+* **更好的 Semantic ID**：几个 RQ-VAE tokenizer 上的创新共同带来了更高质量的 Semantic ID：加入协同过滤信号的 **co-occurrence contrastive loss**、**多分辨率 codebook**、**progressive masking**。好的 Semantic ID 是任何生成式推荐系统的重要基础。
 
-* **训练效率改变了经济账**：每天少用约 20 倍的训练样本，才让"用 LLM 做推荐"在这里变得负担得起。这是"item token 架构比大 embedding table 更便宜"的一个有力论据。
+* **训练效率改变了经济账**：每天少用约 20 倍的训练样本，才让"用 LLM 做推荐"在这里变得可以负担。这是 *item token 架构比大 embedding table 更便宜*的一个有力论据。
 
 * **一个真正部署上线的 LLM 推荐系统**：PLUM 把预训练 Gemini LLM 变成了线上推荐 LLM，并在 YouTube 的量级上部署。作为最早在生产环境部署的生成式推荐 LLM 之一，这是一个令人兴奋的工程成就。
 
 ### 不足与可能的后续工作
 
-* **Serving 和基础设施成本**：这不是 PLUM 独有的问题，但 LLM 推理 + beam search 的线上成本，可能仍然高于传统 LEM + ANN 检索。
+* **Serving 和 Infrastructure 成本**：这不是 PLUM 独有的问题，但 LLM 推理 + beam search 的线上成本，可能仍然高于传统 LEM + ANN Search。
 
-* **长视频上的每次曝光观看时长下降（0.72x）**：召回更多样、更长尾的视频，似乎在长视频上带来了更短的观看。一个可能的补救是：在 SFT 的 reward 和采样里给观看时长更高的权重。
+* **长视频上的每次曝光观看时长下降（0.72x）**：召回更多样、更长尾的视频，似乎在长视频上带来了更短的观看时长。一个可能的补救方法是：在 SFT 的 reward 和采样里给观看时长更高的权重。
 
-* **省内存的 SFT（LoRA / QLoRA）**：PLUM 的 SFT 是全参数微调。值得研究的是，省内存的方法（[LoRA](https://arxiv.org/abs/2106.09685)、[QLoRA](https://arxiv.org/abs/2305.14314)）在训练成本和效果之间是否有更好的权衡。
+* **Parameter Efficient Fine-Tuning（PEFT）**：PLUM 的 SFT 用的是全参数微调。值得研究的是，用 PEFT（[LoRA](https://arxiv.org/abs/2106.09685)、[QLoRA](https://arxiv.org/abs/2305.14314)）在训练成本和效果之间是否有更好的权衡。
 
 * **Scaling law 和更大的 LLM**：MoE-3B 没能打赢 MoE-900M。后续工作如果能解决这个 scalability 问题、把更大的 LLM 用进推荐，或许能把更多"LLM 的魔法"带进生成式推荐。
 
 ### 大方向
 
-**为什么重要。** 随着 LLM 越来越强——吸收多模态知识、推理能力不断提升——把它们用到推荐上潜力很大。PLUM 是最早成功把一个预训练的通用 LLM 改造成推荐 LLM、并在 YouTube 量级完整部署的系统之一。这是一个非常了不起的工程成就。
+**为什么这篇论文重要**：随着 LLM 越来越强——吸收多模态知识、推理能力不断提升——把它们用到推荐上潜力很大。PLUM 是最早成功把一个预训练的通用 LLM 改造成推荐 LLM、并在 YouTube 量级完整部署的系统之一。这是一个非常了不起的工程成就。
 
 更重要的是，PLUM 给出了一套**可复制的方法论**——**tokenize → 继续预训练 → fine-tune**——把通用 LLM 变成某个领域的专用 LLM。这个配方的价值，可能远远超出生成式推荐本身，对各种领域专用 LLM 应用都是重要贡献。
 
-**行业趋势。** 由 LLM 和 Scaling Law 驱动的生成式推荐，已经是行业的一个重要方向。**[TIGER](../tiger-generative-retrieval/)**、**[OneRec](../onerec/)**、**PLUM** 这些开创性的系统，为理解和继续构建这个方向打下了很好的基础。而随着 LLM 越来越强、越来越便宜，生成式推荐接下来的发展会非常值得期待！
+**行业趋势**：由 LLM 和 Scaling Law 驱动的生成式推荐，已经是行业的一个重要方向。**[TIGER](../tiger-generative-retrieval/)**、**[OneRec](../onerec/)**、**PLUM** 这些开创性的系统，为理解和继续构建这个方向打下了很好的基础。而随着 LLM 越来越强、越来越便宜，生成式推荐接下来的发展会非常值得期待！
 
 ## 参考文献
 
