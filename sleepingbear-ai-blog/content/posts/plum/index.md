@@ -19,7 +19,7 @@ summary = """
 PLUM（YouTube & DeepMind）把一个通用 **Gemini LLM** 改造成**生成式召回模型（generative retrieval）**，并真正上线服务数十亿用户。整体流程：
 
 1. **Item tokenization** —— 给每个视频一个 **Semantic ID**（token tuple），由改进版 RQ-VAE 生成，论文称之为 **SID-v2**（SID-v1 见我之前的 [TIGER 解读](../tiger-generative-retrieval/)）。
-2. **继续预训练（CPT，Continued Pre-Training）** —— 把 SID token 加进 Gemini LLM 的 vocabulary，在"用户观看历史 + 视频元数据"各占一半的数据上继续预训练，让模型把视频 SID 学成一个和文本对齐的新 **modality**。
+2. **继续预训练（CPT：Continued Pre-Training）** —— 把 SID token 加进 Gemini LLM 的 vocabulary，在"用户观看历史 + 视频元数据"各占一半的数据上继续预训练，让模型把视频 SID 学成一个和文本对齐的新 **modality**。
 3. **推荐系统 fine-tuning（SFT）** —— 把 LLM 改造成推荐模型：让 LLM 自回归地生成用户下一个会互动的视频的 SID（Next SID Prediction），loss 按推荐系统 reward 加权。
 
 结果：它打赢了一个**被高度优化过的**传统 embedding table 召回模型，而训练量只有 **每天约 2.5 亿条样本（对方是几十亿条）**，算力 **不到 0.55x FLOPs**。
@@ -73,21 +73,21 @@ PLUM 在这个方法上做了几处改动，论文把改进后的 tokenizer 称�
 
   **Progressive masking** 随机保留 SID 的一个前缀、掩掉其余部分，训练中只用这个前缀作为 Semantic ID。比如一个 4 层的 SID `(A5, B25, C12, D8)` 可能被截断成 `(A5, B25)`。这迫使 Semantic ID 的靠前层级**自己就要有意义**，从而在残差量化中形成更严格、也更可解释的层级。这和神经网络训练里的 **Dropout** 很像：随机丢掉一部分表示，逼着每一部分都自己学习有用信号。
 
-* **co-occurrence contrastive regularization**: 在 TIGER 里，SID 是纯 content embedding 的量化结果。为了让 SID 更贴近用户行为，PLUM 用一个 contrastive loss 把协同过滤（collaborative filtering）信号直接注入量化器，鼓励模型给**在同一次观看 session 中共现**的视频生成相近的 SID。
+* **co-occurrence contrastive regularization。** 在 TIGER 里，SID 是纯 content embedding 的量化结果。为了让 SID 更贴近用户行为，PLUM 用一个 contrastive loss 把协同过滤（collaborative filtering）信号直接注入量化器，鼓励模型给**在同一次观看 session 中共现**的视频生成相近的 SID。
 
 * **三个训练 loss。** RQ-VAE 模型端到端训练，最小化 `L = L_recon + L_rq + L_con`：
-    * **`L_con` —— co-occurence contrastive loss：** PLUM 新增的部分。
+    * **`L_con` —— co-occurrence contrastive loss：** PLUM 新增的部分。
     * **`L_recon` —— reconstruction loss：** 把量化后的 SID 解码回原始输入 embedding，让量化的信息损失最小。
     * **`L_rq` —— 量化（codebook + commitment）loss：** 训练 codebook 和 encoder 达成一致，让每一层的 codeword 忠实表示它的残差。（`L_recon` 和 `L_rq` 是标准 RQ-VAE loss，公式和详细解释见我的 [TIGER 解读](../tiger-generative-retrieval/)。）
 
-### Step 2 —— 继续预训练（CPT）：教会 LLM 一个新 modality
+### Step 2 —— 继续预训练（CPT：Continued Pre-Training）：教会 LLM 一个新 modality
 
 一个通用的 Gemini LLM 并不懂 YouTube 的推荐领域知识——它只是一个带自己文本 vocabulary 的语言模型。那怎么教会它？PLUM 的做法很巧妙：**把视频的 Semantic ID 扩进 LLM 的 vocabulary**。
 
-但只是把 SID token 加进 vocabulary 是不够的，还得**教会 LLM 这些 SID token 的含义**——也就是让它们和已有的文本 token 对齐。PLUM 的办法是在合成的「视频 SID + 文本 token」序列上继续做 **next-token-prediction** 预训练，数据 50/50 混合：
+但只是把 SID token 加进 vocabulary 是不够的，还得**教会 LLM 这些 SID token 的含义**——也就是让它们和已有的文本 token 对齐。PLUM 的办法是在人工合成的「视频 SID + 文本 token」序列上继续做 **next-token-prediction** 预训练，数据 50/50 混合：
 
 * **用户行为数据** —— 观看历史，附带额外特征。
-* **视频元数据语料** —— 把 SID 和它的文本绑定起来的自然语言句子，取自视频标题、描述、字幕和频道名。
+* **视频元数据** —— 把 SID 和它的文本绑定起来的自然语言句子，取自视频标题、描述、字幕和频道名。
 
 两者都按下面的 schema 序列化成 token 序列：
 
@@ -101,7 +101,7 @@ PLUM 在这个方法上做了几处改动，论文把改进后的 tokenizer 称�
 
 训练规模：**100 万步，batch size 16，约 2600 亿 token。**
 
-结果是一个 SID token 和文本处在同一表示空间里的 LLM——而且值得注意的是，它**保留了通用 LLM 能力**，可以在 SID 上做 **few-shot in-context learning**：给它一个 SID 和一段任务描述，它能合理地把句子补全。
+结果是一个 SID token 和文本处在同一表示空间里的 LLM——特别值得注意的是，它**保留了通用 LLM 的知识和能力**，可以在 SID 上做 **few-shot in-context learning**：给它一个 SID 和一个任务描述句子，它能合理地把句子补全。
 
 ### Step 3 —— 监督微调（SFT）做生成式召回
 
