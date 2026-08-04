@@ -33,7 +33,7 @@ PLUM（YouTube & DeepMind）把一个通用 **Gemini LLM** 改造成**生成式�
 
 主流答案一直是 **LEM（Large Embedding Model，大 embedding 模型）**：给每个 item（视频）ID 学一个 embedding，再给用户生成一个 embedding，然后用用户 embedding 去搜索 item embedding 的 **ANN（Approximate Nearest Neighbor）index**。论文提到，YouTube 传统线上召回模型的 embedding 层 vocabulary 规模是 `O(10M)`（即 `O(10M)` 个 item embedding），占了**模型参数的 99.6%**——剩下的整个神经网络只有 **0.4%**。
 
-![(a) LEM 把 99.6% 的参数放在 item-ID embedding table 里，喂给一个很薄的神经网络，靠点积在 ANN index 里检索；它的 scale up 方式是把表做大，并且需要每天几十亿条训练样本。(b) PLUM 把每个视频 tokenize 成 Semantic ID，喂给一个由 Gemini-1.5 热启动的 decoder-only LLM，90% 的参数在网络里，直接用 beam search 生成 Semantic ID，不需要额外 index。](lem-vs-plum.svg)
+![(a) LEM 把 99.6% 的参数放在 item-ID embedding table 里，喂给一个很薄的神经网络，靠点积在 ANN index 里检索；它的 scale up 方式是把表做大，并且需要每天几十亿条训练样本。(b) PLUM 把每个视频 tokenize 成 Semantic ID，喂给一个由 Gemini-1.5 warm-started 的 decoder-only LLM，90% 的参数在网络里，直接用 beam search 生成 Semantic ID，不需要额外 index。](lem-vs-plum.svg)
 
 *LEM 靠把 embedding table 做大来 scale，PLUM 靠把神经网络做大来 scale（本图专为本文绘制）*
 
@@ -121,11 +121,11 @@ Loss 是标准的 Next Token Prediction (NTP) loss（预测目标被点击视频
 
 **线上服务时**，PLUM 用 **beam search** 从模型解码出多个 SID，每个 SID 映射回一个真实视频，作为召回候选。原则上模型可能**幻觉**出一个不对应任何视频的 SID，但 SFT 之后幻觉率 **< 5%**——真实存在但可控。
 
-这种 generative retrieval 没有 ANN index：**模型本身就是 index。**
+这种生成式召回没有 ANN index：**模型本身就是 index。**
 
 ## 实验与结果
 
-**被评测的模型**是一个 **900M 激活参数的 MoE（Mixture-of-Experts）**（总参数约 4.2B）LLM，来自 Gemini-1.5 家族，热启动后在 YouTube 数据上做 CPT 和 SFT，覆盖长视频（LFV）和 Shorts 两个场景。
+**被评测的模型**是一个 **900M 激活参数的 MoE（Mixture-of-Experts）**（总参数约 4.2B）LLM，来自 Gemini-1.5 LLM 家族，warm-started 后在 YouTube 数据上做 CPT 和 SFT，覆盖长视频（LFV）和短视频（Shorts）两个场景。
 
 **对比一个被高度优化过的线上 Transformer LEM baseline**（每个数字是 PLUM ÷ LEM）：
 
@@ -138,7 +138,7 @@ Loss 是标准的 Next Token Prediction (NTP) loss（预测目标被点击视频
 
 *[论文](https://arxiv.org/abs/2510.07784) Table 2。"有效 vocabulary 规模" = 覆盖 95% 曝光所需的不同视频数量。*
 
-最亮眼的是**有效 vocabulary 规模**——Shorts 上 13x。PLUM 推荐的视频覆盖了库里**宽得多**的一片区域，说明它的泛化更好；而 baseline LEM 明显更集中在热门视频上。两个场景的 CTR 也都有明显提升。
+最亮眼的是**有效 vocabulary 规模**——Shorts 上 13x。PLUM 推荐的视频覆盖了库里**广泛得多**的一片区域，说明它的泛化（Generalization）更好；而 baseline LEM 明显更集中在热门视频上。两个场景的 CTR 也都有明显提升。
 
 **线上 A/B 测试**（在最好的现有召回模型之上叠加 PLUM 召回，配额对齐，记为 LEM+）：
 
@@ -151,19 +151,19 @@ Loss 是标准的 Next Token Prediction (NTP) loss（预测目标被点击视频
 
 *[论文](https://arxiv.org/abs/2510.07784) Table 3。*
 
-绝对数字看起来很小，但在 YouTube 的体量上并不小。它们说明：在一个已经被高度优化的系统之上，PLUM 仍然带来了**增量价值**。
+绝对数字看起来小，但在 YouTube 的体量上并不小。它们说明：在一个已经被高度优化的系统之上，PLUM 仍然带来了**增量价值**。
 
-**训练效率。** 900M MoE 每天训练约 **2.5 亿条样本**；LEM 每天要训练**几十亿条**。尽管 PLUM 的稠密参数是 LEM 的 100 倍，它的总训练成本却相当——因为收敛快得多，只用了 **不到 0.55x 的 FLOPs**。
+**训练效率**：900M MoE 每天训练约 **2.5 亿条样本**；LEM 每天要训练**几十亿条**。尽管 PLUM 的 dense parameter 是 LEM 的 100 倍，它的总训练成本却相当——因为收敛快得多，只用了 **不到 0.55x 的 FLOPs**。
 
-**SID-v2 消融实验** —— 每一项改进都有用，其中共现 loss 最关键：
+**SID-v2 Ablation 实验** —— 证明每一项 RQ-VAE 改进都有用，其中 co-occurrence contrastive loss 最关键：
 
 | SID 模型 | SID 唯一性 | Video Recall@10 |
 |:---|:---:|:---:|
 | SID-v1（baseline） | 94.0% | 12.3% |
 | **SID-v2（完整）** | **96.7%** | **14.4%** |
 | − 多分辨率 codebook | 94.8% | 13.2% |
-| − 多 embedding | 96.9% | 12.8% |
-| − 共现 loss | 91.8% | 12.6% |
+| − 多模态 embedding | 96.9% | 12.8% |
+| − co-occurrence contrastive loss | 91.8% | 12.6% |
 
 *[论文](https://arxiv.org/abs/2510.07784) Table 4。*
 
