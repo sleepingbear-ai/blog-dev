@@ -55,15 +55,15 @@ LLM 的成功催生了 **生成式推荐（Generative Recommendation）** 这个
 
 ### Step 1 —— 把每个视频 tokenize 成 Semantic ID
 
-Semantic ID 是从 item 内容生成的一个离散 codeword tuple，由 **RQ-VAE（Residual-Quantized VAE）** 模型生成：输入一个 item content embedding，用 codebook 量化，取残差，再用下一层 codebook 量化，如此往复。每一层选中的 codeword 就是 ID 的一个 token。（RQ-VAE 的详细解释见我的 [TIGER 解读](../tiger-generative-retrieval/)。）
+Semantic ID 是从 item content 生成的一个 codeword tuple，由 **RQ-VAE（Residual-Quantized VAE）** 模型生成：输入一个 item content embedding，用 codebook 量化，取残差，再用下一层 codebook 量化，如此往复。每一层选中的 codeword 就是 ID 的一个 token。（RQ-VAE 的详细解释见我的 [TIGER 解读](../tiger-generative-retrieval/)。）
 
-PLUM 在这个方法上做了几处改动，论文把改进后的 tokenizer 称为 **SID-v2**：
+PLUM 在这个方法上做了几处改动，把改进后的 tokenizer 称为 **SID-v2**：
 
 ![论文 Figure 1：SID-v2 模型。两个多模态视频 embedding 分别由各自的 DNN encoder 编码，再拼接、投影成一个稠密的语义 embedding；残差量化器在 5 个 codebook 上把它压缩成 Semantic ID。这个 ID 同时被训练去重建原始输入（reconstruction loss）以及拉近共现视频（contrastive loss）。](fig1-sid-v2.svg)
 
 *SID-v2 模型：双 encoder、残差量化，加上 reconstruction loss + contrastive loss。（[论文](https://arxiv.org/abs/2510.07784) Figure 1，He et al., 2025。）*
 
-* **融合多模态输入**：一个视频的语义存在于标题、画面和音频里。TIGER 只量化了**单个**（基于文本的）content embedding；PLUM 输入一组多模态 embedding `{x_1 … x_M}`，各自用独立 encoder 编码，然后拼接并投影成一个融合向量 `z` 再做量化。
+* **融合多模态输入**：一个视频的语义存在于标题、画面和音频里。TIGER 只量化了**单个**（基于文本的）content embedding；PLUM 输入一组多模态 embedding `{x_1 … x_M}`，各自用独立 encoder 编码，然后拼接并投影成一个融合向量再做量化。
 
 * **多分辨率 codebook**：TIGER 每一层用一样大的 codebook，这其实很浪费：越深的层编码的是越小、越低熵的残差，却分到同样多的 codeword，导致大部分 SID 空间稀疏空置。OneRec 注意到了类似问题，改用 **balanced K-means** 而不是 RQ-VAE 来生成 SID（详见我的 [OneRec 解读](../onerec/)）。PLUM 的做法是让每层 codebook 按几何级数缩小——`2048 / 2^(l−1)`——这样第一层最有区分度，整个 SID 也更紧凑高效。
 
