@@ -76,9 +76,9 @@ PLUM 在这个方法上做了几处改动，把改进后的 tokenizer 称为 **S
 * **co-occurrence contrastive regularization**：在 TIGER 里，SID 是纯 content embedding 的量化结果。为了让 SID 更贴近用户行为，PLUM 用一个 contrastive loss 把协同过滤（collaborative filtering）信号直接注入量化器，鼓励模型给**在同一次观看 session 中共现**的视频生成相近的 SID。
 
 * **三个训练 loss**：RQ-VAE 模型端到端训练，最小化 `L = L_recon + L_rq + L_con`：
-    * **`L_con` —— co-occurrence contrastive loss**：PLUM 新增的部分。
-    * **`L_recon` —— reconstruction loss**：把量化后的 SID 解码回原始输入 embedding，让量化的信息损失最小。
-    * **`L_rq` —— 量化（codebook + commitment）loss**：训练 codebook 和 encoder 达成一致，让每一层的 codeword 忠实表示它的残差。（`L_recon` 和 `L_rq` 是标准 RQ-VAE loss，公式和详细解释见我的 [TIGER 解读](../tiger-generative-retrieval/)。）
+    * **`L_con`（co-occurrence contrastive loss）**：PLUM 新增的部分。
+    * **`L_recon`（reconstruction loss）**：把量化后的 SID 解码回原始输入 embedding，让量化的信息损失最小。
+    * **`L_rq`（codebook + commitment 量化 loss）**：训练 codebook 和 encoder 达成一致，让每一层的 codeword 忠实表示它的残差。（`L_recon` 和 `L_rq` 是标准 RQ-VAE loss，公式和详细解释见我的 [TIGER 解读](../tiger-generative-retrieval/)。）
 
 ### Step 2 —— 继续预训练（CPT：Continued Pre-Training）：教会 LLM 一个新 modality
 
@@ -113,7 +113,7 @@ CPT 给出的是一个"看得懂 SID"的模型；SFT 把它专门化成召回模
 
 输入 prompt 是多种 modality 的混合序列——交错的 SID token、文本特征，以及为数值特征定制的 token。特别地，这里加入了 CPT 阶段没有的**实时 Context**。模型学习的是：给定用户历史和 Context，预测 user logs 里**被点击视频**的 SID token。
 
-Loss 是标准的 Next Token Prediction (NTP) loss（预测目标被点击视频 SID 的 token 序列），但**按 reward 加权**：
+Loss 是标准的 Next Token Prediction（NTP）loss（预测目标被点击视频 SID 的 token 序列），但**按 reward 加权**：
 
 ![SFT loss：对目标 SID 的各个 token t 求和取负——reward r(user, v_click) 乘以在 Context、History 和前缀 token sid_<t 条件下 token sid_t 的 log 概率。](sft-loss.svg)
 
