@@ -28,7 +28,7 @@ PLUM（Google DeepMind & YouTube）把一个通用的 **Gemini LLM** 改造成**
 
 ## 问题在哪：推荐系统里的召回
 
-* **输入**：用户的观看历史 + Context
+* **输入**：用户观看历史 + Context
 * **输出**：从十亿量级的视频库里，选出几百个用户可能感兴趣的候选视频
 
 主流答案一直是 **LEM（Large Embedding Model）**：给每个 item（视频）ID 学一个 embedding，再给用户生成一个 embedding，然后用用户 embedding 去搜索 item embedding 的 **ANN（Approximate Nearest Neighbor）index**。论文提到，YouTube 传统线上召回模型的 embedding 层 vocabulary 规模是 `O(10M)`（即 `O(10M)` 个 item embedding），占了**模型参数的 99.6%**——剩下的整个神经网络只有 **0.4%**。
@@ -105,13 +105,13 @@ PLUM 在这个方法上做了几处改动，把改进后的 tokenizer 称为 **S
 
 ### Step 3 —— 监督微调（SFT）做生成式召回
 
-CPT 给出的是一个"看得懂 SID"的模型；SFT 把它专门化成召回模型：**给定用户和 Context，生成她下一个会互动的视频的 SID。**
+CPT 给出的是一个"看得懂 SID"的模型；SFT 把它专门化成召回模型：**给定用户观看历史和 Context，生成她下一个会互动的视频的 SID。**
 
 ![论文 Figure 2：面向下一个视频推荐的生成式召回。输入 prompt 是用户观看历史（Semantic ID 序列，穿插地区、用户、设备等特征）以及 Context 视频的频道、标题和 SID；decoder-only LLM 自回归地逐 token 生成下一个视频的 Semantic ID（`<A5> <B25> … <H55> <EOS>`）。](fig2-generative-retrieval.png)
 
 *生成式召回：decoder-only LLM 读入 prompt，生成下一个视频的 Semantic ID。（[论文](https://arxiv.org/abs/2510.07784) Figure 2，He et al., 2025。）*
 
-输入 prompt 是多种 modality 的混合序列——交错的 SID token、文本特征，以及为数值特征定制的 token。特别地，这里加入了 CPT 阶段没有的**实时 Context**。模型学习的是：给定用户历史和 Context，预测 user logs 里**被点击视频**的 SID token。
+输入 prompt 是多种 modality 的混合序列——交错的 SID token、文本特征，以及为数值特征定制的 token。特别地，这里加入了 CPT 阶段没有的**实时 Context**。模型学习的是：给定用户观看历史和 Context，预测 user logs 里**被点击视频**的 SID token。
 
 Loss 是标准的 Next Token Prediction（NTP）loss（预测目标被点击视频 SID 的 token 序列），但**按 reward 加权**：
 
