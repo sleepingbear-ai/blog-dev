@@ -1,7 +1,7 @@
 +++
 date = '2026-08-14T10:00:00-07:00'
 draft = false
-title = 'YouTube TokenMinds 解释和思考：用 Gemini LLM 生成用户 Token 和 Embedding'
+title = 'TokenMinds 解释和思考：面向 YouTube 推荐的 LLM 用户建模'
 tags = ['ai', '推荐系统', '生成式推荐', '用户建模', 'tokenminds', 'semanticid', 'llm', 'gemini', 'youtube', '人工智能', 'ai学习', '大模型']
 summary = """
   *TokenMinds（Google DeepMind & YouTube）用一个基于 Gemini LLM 的 encoder-decoder 同时生成用户 embedding 和 40 个离散 user token，把长视频与 Shorts 的用户建模统一到一个模型里，并通过异步生成和缓存服务数十亿用户。它把 PLUM 的生成式推荐框架从 item 召回推进到了 user modeling。*
