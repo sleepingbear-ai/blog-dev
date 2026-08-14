@@ -1,0 +1,6 @@
+[submodule "sleepingbear-ai-blog/public"]
+	path = sleepingbear-ai-blog/public
+	url = https://github.com/sleepingbear-ai/sleepingbear-ai.github.io.git
+[submodule "sleepingbear-ai-blog/themes/hugo-PaperMod"]
+	path = sleepingbear-ai-blog/themes/hugo-PaperMod
+	url = https://github.com/adityatelange/hugo-PaperMod.git
