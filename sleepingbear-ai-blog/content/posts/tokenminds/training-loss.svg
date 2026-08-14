@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 210" font-family="Georgia,'Times New Roman',serif">
+  <rect x="0.5" y="0.5" width="879" height="209" rx="10" fill="#ffffff" stroke="#e2e2e2" stroke-width="1"/>
+
+  <text x="440" y="62" text-anchor="middle" font-size="21" fill="#1c3a5e">
+    <tspan font-style="italic">L</tspan><tspan>&#160;&#160;=&#160;&#160;&#8722;&#160;&#160;</tspan><tspan font-size="30">&#931;</tspan><tspan font-size="12.5" font-style="italic" baseline-shift="-40%">i=1..N</tspan><tspan>&#160;&#160;</tspan><tspan font-style="italic">r</tspan><tspan>(</tspan><tspan font-style="italic">W</tspan><tspan font-size="12.5" font-style="italic" baseline-shift="-26%">i</tspan><tspan>)&#160;&#160;&#183;&#160;&#160;</tspan><tspan font-size="30">&#931;</tspan><tspan font-size="12.5" font-style="italic" baseline-shift="-40%">j=1..L</tspan><tspan>&#160;&#160;log&#160;</tspan><tspan font-style="italic">P</tspan><tspan>(SID</tspan><tspan font-size="12.5" font-style="italic" baseline-shift="-26%">i,j</tspan><tspan>&#160;|&#160;</tspan><tspan font-style="italic">W</tspan><tspan font-size="12.5" baseline-shift="-26%">1..t</tspan><tspan>,&#160;</tspan><tspan font-style="italic">W</tspan><tspan font-size="12.5" baseline-shift="-26%">&lt;i</tspan><tspan>,&#160;SID</tspan><tspan font-size="12.5" font-style="italic" baseline-shift="-26%">i,&lt;j</tspan><tspan>)</tspan>
+  </text>
+
+  <line x1="40" y1="88" x2="840" y2="88" stroke="#e2e2e2" stroke-width="1"/>
+
+  <text x="40" y="115" font-size="13.5" fill="#333">
+    <tspan font-style="italic" fill="#1c3a5e" font-weight="bold">W</tspan><tspan font-size="10" baseline-shift="-26%" fill="#1c3a5e" font-weight="bold">1..t</tspan><tspan fill="#666">&#160;&#160;—&#160;&#160;</tspan><tspan>the user&#8217;s watch history up to cutoff time&#160;</tspan><tspan font-style="italic">T</tspan><tspan>, read by the encoder</tspan>
+  </text>
+  <text x="40" y="140" font-size="13.5" fill="#333">
+    <tspan font-style="italic" fill="#1c3a5e" font-weight="bold">N</tspan><tspan fill="#666">&#160;&#160;—&#160;&#160;</tspan><tspan>up to 15 targets sampled from the&#160;</tspan><tspan font-weight="bold">next 24 hours</tspan><tspan>, not just the very next watch</tspan>
+  </text>
+  <text x="40" y="165" font-size="13.5" fill="#333">
+    <tspan font-style="italic" fill="#1c3a5e" font-weight="bold">L</tspan><tspan fill="#666">&#160;&#160;—&#160;&#160;</tspan><tspan>loss is scored on the first&#160;</tspan><tspan font-weight="bold">4 of 8</tspan><tspan>&#160;SID levels only: predict the&#160;</tspan><tspan font-style="italic">neighborhood</tspan><tspan>, not the video</tspan>
+  </text>
+  <text x="40" y="190" font-size="13.5" fill="#333">
+    <tspan font-style="italic" fill="#1c3a5e" font-weight="bold">r</tspan><tspan>(</tspan><tspan font-style="italic" fill="#1c3a5e" font-weight="bold">W</tspan><tspan font-size="10" font-style="italic" baseline-shift="-26%" fill="#1c3a5e" font-weight="bold">i</tspan><tspan>)</tspan><tspan fill="#666">&#160;&#160;—&#160;&#160;</tspan><tspan>engagement reward; applied by&#160;</tspan><tspan font-style="italic">sampling</tspan><tspan>&#160;examples in proportion to it, then weighting equally</tspan>
+  </text>
+</svg>
