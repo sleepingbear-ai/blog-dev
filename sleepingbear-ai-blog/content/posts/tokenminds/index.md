@@ -4,11 +4,11 @@ draft = false
 title = 'TokenMinds 解释和思考：面向 YouTube 推荐的 LLM 用户建模'
 tags = ['ai', '推荐系统', '生成式推荐', '用户建模', 'tokenminds', 'semanticid', 'llm', 'gemini', 'youtube', '人工智能', 'ai学习', '大模型']
 summary = """
-  *TokenMinds（Google DeepMind & YouTube）用一个基于 Gemini LLM 的 encoder-decoder 同时生成用户 embedding 和 40 个离散 user token，把长视频与 Shorts 的用户建模统一到一个模型里，并通过异步生成和缓存服务数十亿用户。它把 PLUM 的生成式推荐框架从 item 召回推进到了 user modeling。*
+  *TokenMinds（Google DeepMind & YouTube）用一个基于 Gemini LLM 的 encoder-decoder 同时生成用户 embedding 和 40 个离散 user token，把长视频与短视频的用户建模统一到一个模型里，并通过异步生成和缓存服务数十亿用户。它把 PLUM 的生成式推荐框架从 item 召回推进到了 user modeling。*
 """
 +++
 
-*TokenMinds（Google DeepMind & YouTube）用一个基于 Gemini LLM 的 encoder-decoder 同时生成用户 embedding 和 40 个离散 user token，把长视频与 Shorts 的用户建模统一到一个模型里，并通过异步生成和缓存服务数十亿用户。它把 PLUM 的生成式推荐框架从 item 召回推进到了 user modeling。*
+*TokenMinds（Google DeepMind & YouTube）用一个基于 Gemini LLM 的 encoder-decoder 同时生成用户 embedding 和 40 个离散 user token，把长视频与短视频的用户建模统一到一个模型里，并通过异步生成和缓存服务数十亿用户。它把 PLUM 的生成式推荐框架从 item 召回推进到了 user modeling。*
 
 论文：**[TokenMinds: Pretrained User Tokens and Embeddings for User Understanding in Large Recommender Systems](https://arxiv.org/abs/2606.25147)**（Liu et al., Google DeepMind & YouTube, 2026 年 6 月）
 
