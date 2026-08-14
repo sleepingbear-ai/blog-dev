@@ -25,7 +25,7 @@ Use Web Links whenever it makes sense.
 
 ### Images
 
-Use Images whenever it makes sense, but not too many to be distracting.
+Use Images whenever it makes sense, but not too many to be distracting. Prefer using real images instead of ascii diagrams.
 
 ## Commands
 
