@@ -74,17 +74,17 @@ TokenMinds 的输入比普通的 user watch-history 模型丰富：
 这个架构有两个直接好处：
 
 * **Encoder 更适合读完整历史**：双向 attention 能更全面地捕捉长序列模式，对 encoder state 做 pooling 就能得到 user embedding。
-* **Serving 时可以拆开**：encoder 很重，负责压缩最多 1,200 次观看的慢变化历史；decoder 更轻，负责反映近期兴趣。两者分开后，可以低频更新 encoder、高频更新 decoder。
+* **Serving 时可以拆开**：encoder 很重，负责压缩最多 1,200 次视频观看构成的、变化较慢的长期用户历史；decoder 更轻，负责反映近期兴趣。两者分开后，可以低频更新 encoder、高频更新 decoder。
 
-### 训练：不只预测“下一个视频”
+### 模型训练：不只预测“下一个视频”
 
 ![论文 Figure 2：历史观看序列进入由 CPT 初始化的 encoder；同样由 CPT 初始化的 decoder 自回归生成未来 24 小时内多个随机观看视频的 SID。](fig2-training.png)
 
-*Encoder 读历史，decoder 一次生成多个近期未来的 SID。（[论文](https://arxiv.org/abs/2606.25147) Figure 2，Liu et al., 2026。）*
+*Encoder 读用户历史，decoder 一次生成未来 24 小时内多个观看目标的 SID。（[论文](https://arxiv.org/abs/2606.25147) Figure 2，Liu et al., 2026。）*
 
 ![TokenMinds loss：对 N 个未来观看目标的 SID token loss 求和，并结合 engagement reward。N 最多为 15；目标从未来 24 小时采样；只预测 SID 前 4 层。](training-loss.svg)
 
-*TokenMinds 的训练目标（论文 Equation 1，本图专为本文标注）。*
+*TokenMinds 模型的 Loss Function（论文 Equation 1，本图专为本文标注）。*
 
 Loss 里的三个设计是整个方法的核心：
 
