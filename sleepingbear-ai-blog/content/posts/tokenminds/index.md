@@ -89,7 +89,7 @@ TokenMinds 的输入比普通的 user watch-history 模型丰富：
 Loss 里的三个设计是整个方法的核心：
 
 * **Look-ahead sampling**：不只预测紧接着的下一次观看，而是从**未来 24 小时**的观看里随机抽最多 `N=15` 个目标。这是因为用户模型应该表示一段时间内的多种兴趣，而不是过拟合某一次偶然点击。
-* **SID truncation**：视频的完整SID 有 8 层token，训练时只保留前 **4 层**。一个短前缀代表视频库里的一个语义区域，而不是某一个具体视频，所以更能表达“兴趣”，也减少记忆训练 item 的倾向。
+* **SID truncation**：视频的完整 SID 有 8 层，训练和输入编码只保留前 **4 层**。一个短前缀代表视频库里的一个语义区域，而不是某一个具体视频，所以更能表达“兴趣”，也减少记忆训练 item 的倾向。
 * **一次预测多个目标**：相比每个样本只预测一个目标，训练的 sample efficiency 更高。
 
 ### Cross-scenario：一个模型同时理解长视频和短视频
@@ -104,15 +104,15 @@ Serving 时，统一模型仍然需要分别输出 LFV 和 SFV 场景的 user to
 
 *Multi-context decoding：一次 encode，按场景并行 decode。（[论文](https://arxiv.org/abs/2606.25147) Figure 3，Liu et al., 2026。）*
 
-TokenMinds 提出了一种巧妙的 **multi-context decoding** 方案：用户历史只 encode 一次，然后按场景将 decoding 分支为并行的 sub-batch，每个场景一个，并且全部共享相同的 encoder hidden states。结果是 serving inference 从 698 块芯片降到 481 块，节省 **31%**。
+TokenMinds 提出了一种巧妙的 **multi-context decoding** 方案：用户历史只 encode 一次，然后按场景将 decoding 分支为并行的 sub-batch，每个场景一个，并且全部共享相同的 encoder hidden states。结果是 serving inference 从 698 块芯片降到 481 块，节省 **31%**。训练算力也减半，因为一个统一模型替代了两个独立模型。
 
 ### 下游模型怎么使用 user token？
 
-User modeling 输出的用户表示会被下游排序和召回模型使用。TokenMinds 同时输出 user embedding 和 user token: embedding 总结用户看过什么，token 则预测用户接下来会看什么。下游模型该如何把 user token 作为特征使用？
+User modeling 输出的用户表示会被下游排序和召回模型使用。TokenMinds 同时输出 user embedding 和 user token——embedding 总结用户看过什么，token 则预测用户接下来会看什么。下游模型该如何把 user token 作为特征使用？
 
 论文测试了三种 token-to-embedding 方法：
 
-1. **Prefix Embedding Mapping（EM）**：把每个 user token（SID prefix）映射回所有共享该 prefix 的视频的原始 content embedding 均值 (mean)；这些 content embedding 正是生成视频 SID 时的输入。
+1. **Prefix Embedding Mapping（EM）**：把每个 user token（SID prefix）映射回所有共享该 prefix 的视频的原始 content embedding 均值（mean）；这些 content embedding 正是生成视频 SID 时的输入。
 2. **N-gram Embedding**：把 user token（SID prefix）切成固定长度的 sub-word，为每个 sub-word 学习一个 embedding，再把它们相加。
 3. **SPM Embedding**：与方法 2 相同，但使用 SentencePiece 学习可变长度的 sub-word。
 
@@ -181,11 +181,11 @@ User modeling 输出的用户表示会被下游排序和召回模型使用。Tok
 
 ### TokenMinds 的优势与启发
 
-* **把 Semantic ID 从 item 扩展到 user modeling**：TIGER、OneRec 和 PLUM 证明了 SID 作为 item 表示的价值；TokenMinds 则第一次在 YouTube 量级验证了 SID-based user token 的有效性。
+* **把 Semantic ID 从 item 扩展到 user modeling**：TIGER、OneRec 和 PLUM 证明了 SID 作为 item 表示的价值；TokenMinds 则在 YouTube 量级验证了 SID-based user token 的有效性。
 * **用粗粒度 item SID prefix 表示用户兴趣**：8 层 item SID 是语义空间里的一个“点”，4 层 user token 是一个“区域”。用户和 item 使用同一套 vocabulary，但处于不同粒度。Cold-Start ablation 的 `−17.1%` 说明这个简单设计非常有效。
 * **异步 serving 是真正的 scale-up 关键**：一个昂贵的用户表示只生成一次，却能被许多下游模型重复使用。缓存和异步刷新让 LLM 用户建模在工业规模下变得可行。
 * **Tokenization 让跨场景统一变简单**：在共享 SID 空间里，合并长视频和短视频只需要两个 condition token；一个模型就能替代两个模型。
-* **搜索查询对 LLM 用户建模很有用**：搜索查询单独使 Cold-Start Recall@10 提升 `+16.9%`，与 CPT 结合后达到 `+31.5%`。
+* **用户搜索行为对 LLM 用户建模很有用**：搜索词可以让 Cold-Start Recall@10 提升 `+16.9%`，与 CPT 结合后达到 `+31.5%`。
 
 ### TokenMinds 的不足与可能的后续工作
 
@@ -197,9 +197,9 @@ User modeling 输出的用户表示会被下游排序和召回模型使用。Tok
 
 **为什么这篇论文重要**：生成式推荐此前主要关注如何把 item 变成 Semantic ID。TokenMinds 证明了**用户也可以被 token 化**，而且多个 user token 确实能表达一个用户的多种兴趣。
 
-它也提醒我们，token 不一定要取代 embedding。Token 更适合表示离散、多样、面向未来的兴趣，embedding 更适合连续、紧凑地总结历史；两者结合可能才是更完整的用户表示。
+它也提醒我们，user token 不一定要取代 user embedding。Token 更适合表示离散、多样、面向未来的兴趣，embedding 更适合连续、紧凑地总结历史；两者结合可能才是更完整的用户表示。
 
-把几篇工作连起来看，会形成一条很清楚的路线：**[TIGER](../tiger-generative-retrieval/) → [PLUM](../plum/) → TokenMinds**——先把 item 变成语义 token，再教 LLM 理解这些 token，最后用同一种 token 语言表示用户。随着 LLM inference 继续变便宜，推荐系统里的下一波创新，很可能不只是“用 LLM 排序”，而是把用户、内容和行为都统一成可生成、可组合的 token。
+把这几篇工作连起来看，会形成一条很清楚的路线：**[TIGER](../tiger-generative-retrieval/) → [PLUM](../plum/) → TokenMinds**——先把 item 变成语义 token，再教 LLM 理解这些 token，最后用同一种 token 语言表示用户。随着 LLM inference 继续变便宜、变强大，生成式推荐的下一波创新很可能会沿着同一方向继续：把用户、多模态内容和跨场景行为统一到一个可生成、可组合的 token 语义空间中。
 
 ## 参考文献
 
