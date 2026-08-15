@@ -159,8 +159,8 @@ User modeling 输出的用户表示会被下游排序和召回模型使用。Tok
 
 这里有两个结论：
 
-* `CPT > 通用预训练 Gemini > 随机初始化`：通用 LLM 知识有帮助，而把 SID 和文本对齐的 CPT 还能进一步提升。
-* 搜索词本身对 Cold-Start 就有 `+16.9%`；CPT + 搜索词达到 `+31.5%`。已经理解 SID 的 LLM，更能把文字表达的显式意图和视频观看历史结合起来。
+* `CPT（Continued Pre-Training） > Pre-Trained Gemini > 随机初始化`：通用 LLM 知识有帮助，而把 SID 和文本对齐的 CPT 还能进一步提升。
+* 搜索词本身对 Cold-Start 就有 `+16.9%`；CPT + 搜索词达到 `+31.5%`：已经理解 SID 的 LLM，更能把文字表达的显式意图和视频观看历史结合起来。
 
 **最重要的线上 A/B 结果**（在生产排序模型上运行 7 天）：
 
@@ -175,7 +175,7 @@ User modeling 输出的用户表示会被下游排序和召回模型使用。Tok
 
 *[论文](https://arxiv.org/abs/2606.25147) Table 4。粗体表示在 95% 置信水平下显著。*
 
-短视频上，embedding 和 token 一起使用的 `+0.62%`，甚至高于两者单独提升之和。这是论文最重要的结果：**dense embedding 更像是对历史的压缩，user token 更像是对未来兴趣的多路预测；它们是互补的。**
+短视频上，embedding 和 token 一起使用的 `+0.62%`，甚至高于两者单独提升之和。这是论文很重要的结果：**dense embedding 更像是对历史的压缩，user token 更像是对未来兴趣的多路预测；它们是互补的。**
 
 ## 我的一些想法
 
