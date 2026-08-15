@@ -28,14 +28,14 @@ TokenMinds 问了一个很自然的问题：**既然视频可以有 Semantic ID�
 
 最有说服力的是线上结果。在 YouTube 短视频推荐场景中，单独加入 embedding 带来 `+0.05%` 满意互动，单独加入 token 是 `+0.40%`，**两者一起则达到 `+0.62%`**。这说明在 user modeling 中，user token 和 user embedding 不是重复的表示，而是可以互补。
 
-## 问题在哪：怎么表示一个用户？
+## User Modeling：怎么表示一个用户？
 
 用户建模（User Modeling）是推荐系统的基础模块：
 
-* **输入**：用户看过的长视频和 Shorts、搜索词、点赞和点踩、观看时长等行为序列。
+* **输入**：用户看过的长视频和短视频、搜索词、点赞和点踩、观看时长等行为序列。
 * **输出**：一个能被下游召回或排序模型使用的用户表示。
 
-传统方法通常把整段历史压缩成一个 **dense user embedding**。这种表示简单好用，但有一个结构上的上限：一个人的多种兴趣，最终都要挤进一个固定长度的向量。
+传统方法通常把整段用户行为序列压缩成一个 **dense user embedding**。这种表示简单好用，但有一个结构上的上限：一个人的多种兴趣，最终都压缩进一个固定长度的向量。
 
 另一条近年的路线是让 LLM 生成文字版用户画像，比如“喜欢烹饪节目和赛车”。但论文认为，这类画像更容易捕捉**话题共现**，不擅长行为序列中的动态变化；同时，文字和视频之间仍然存在 **modality gap**。
 
@@ -51,7 +51,7 @@ TokenMinds 问了一个很自然的问题：**既然视频可以有 Semantic ID�
 
 TokenMinds 沿用了 PLUM 的基础设施：同一个基于多模态视频 embedding 的 RQ-VAE tokenizer，以及把 SID 教给 Gemini LLM 的 Continued Pre-Training（CPT）。如果你对这部分不熟悉，可以先看我的 [PLUM 解读](../plum/)；RQ-VAE 的细节则在 [TIGER 解读](../tiger-generative-retrieval/) 里。
 
-![论文 Figure 1：按时间排序的长视频、Shorts、搜索和互动信号进入 encoder；decoder 通过 cross-attention 读取 encoder 输出并生成 SID user tokens，encoder 同时生成 dense user embedding；两种表示一起交给下游模型。](fig1-overview.png)
+![论文 Figure 1：按时间排序的长视频、短视频、搜索和互动信号进入 encoder；decoder 通过 cross-attention 读取 encoder 输出并生成 SID user tokens，encoder 同时生成 dense user embedding；两种表示一起交给下游模型。](fig1-overview.png)
 
 *TokenMinds 整体架构。（[论文](https://arxiv.org/abs/2606.25147) Figure 1，Liu et al., 2026。）*
 
@@ -59,7 +59,7 @@ TokenMinds 沿用了 PLUM 的基础设施：同一个基于多模态视频 embed
 
 TokenMinds 的输入比普通的 watch-history 模型丰富：
 
-* **跨场景观看行为**：长视频（LFV）和 Shorts（SFV）来自多个推荐入口，按时间顺序交错排列。
+* **跨场景观看行为**：长视频（LFV）和短视频（SFV）来自多个推荐入口，按时间顺序交错排列。
 * **搜索词**：显式表达用户意图。因为 CPT 已经把文本 token 和 SID 放进同一个 vocabulary，最近 **10 条**搜索可以直接用 `<Search>` token 加入序列。
 * **互动信号**：每次观看的时长、观看比例、点赞、点踩、设备和时间戳。
 
@@ -92,9 +92,9 @@ Loss 里的三个设计是整个方法的核心：
 * **SID truncation**：完整视频 SID 有 8 层，训练时只保留前 **4 层**。一个短前缀代表视频库里的一个语义区域，而不是某一个具体视频，所以更能表达“兴趣”，也减少记忆训练 item 的倾向。这是 ablation 中最重要的设计。
 * **一次预测多个目标**：同一个历史序列提供多个监督信号，训练的 sample efficiency 更高。
 
-### Cross-scenario：一个模型同时理解长视频和 Shorts
+### Cross-scenario：一个模型同时理解长视频和短视频
 
-长视频和 Shorts 的消费方式明显不同，工业系统通常为它们训练两个用户模型。但论文指出：接近一半用户会同时使用两种形式，而且两者 SID 前两层的 vocabulary 有约 **40% 重叠**。用户兴趣并不会按视频形式彻底分开。
+长视频和短视频的消费方式明显不同，工业系统通常为它们训练两个用户模型。但论文指出：接近一半用户会同时使用两种形式，而且两者 SID 前两层的 vocabulary 有约 **40% 重叠**。用户兴趣并不会按视频形式彻底分开。
 
 TokenMinds 只需在每次观看前加 `<LFV>` 或 `<SFV>`，就能把两类行为按时间统一输入同一个模型。Condition token 不参与 loss——预测它们太简单，反而会降低模型质量。
 
@@ -112,7 +112,7 @@ TokenMinds 只需在每次观看前加 `<LFV>` 或 `<SFV>`，就能把两类行�
 2. **N-gram Embedding**：把 SID prefix 切成固定长度 sub-word，查询可学习的 embedding 后相加。
 3. **SPM Embedding**：用 SentencePiece 学习可变长度 sub-word，再查询 embedding。
 
-后两种统称 **Learnable Embeddings（LE）**。每个用户的 40 个 token 分别被 embedding，再 pooling 成一个用户向量。Shorts 线上实验中，LE 带来 `+0.22%` 满意互动，而静态 EM 是 `−0.02%`：让下游模型自己学习 token embedding 更有效。
+后两种统称 **Learnable Embeddings（LE）**。每个用户的 40 个 token 分别被 embedding，再 pooling 成一个用户向量。短视频线上实验中，LE 带来 `+0.22%` 满意互动，而静态 EM 是 `−0.02%`：让下游模型自己学习 token embedding 更有效。
 
 ### Serving：缓存 + 异步更新
 
@@ -163,7 +163,7 @@ TokenMinds 只需在每次观看前加 `<LFV>` 或 `<SFV>`，就能把两类行�
 | 场景 | 用户表示 | Engaged Users | Satisfied Engagement |
 |:---|:---|:---:|:---:|
 | | Embed-only | 0.00% | +0.05% |
-| **Shorts（SFV）** | Token-only | +0.04% | **+0.40%** |
+| **短视频（SFV）** | Token-only | +0.04% | **+0.40%** |
 | | Embed + Token | **+0.11%** | **+0.62%** |
 | | Embed-only | **+0.04%** | +0.03% |
 | **长视频（LFV）** | Token-only | +0.01% | +0.04% |
@@ -171,7 +171,7 @@ TokenMinds 只需在每次观看前加 `<LFV>` 或 `<SFV>`，就能把两类行�
 
 *[论文](https://arxiv.org/abs/2606.25147) Table 4。粗体表示在 95% 置信水平下显著。*
 
-Shorts 上，embedding 和 token 一起使用的 `+0.62%`，甚至高于两者单独提升之和。这是论文最重要的结果：**dense embedding 更像是对历史的压缩，user token 更像是对未来兴趣的多路预测；它们是互补的。**
+短视频上，embedding 和 token 一起使用的 `+0.62%`，甚至高于两者单独提升之和。这是论文最重要的结果：**dense embedding 更像是对历史的压缩，user token 更像是对未来兴趣的多路预测；它们是互补的。**
 
 ## 我的一些想法
 
@@ -180,12 +180,12 @@ Shorts 上，embedding 和 token 一起使用的 `+0.62%`，甚至高于两者�
 * **把 Semantic ID 从 item 扩展到 user**：TIGER、OneRec 和 PLUM 证明了 SID 作为 item 表示的价值；TokenMinds 则第一次在 YouTube 量级验证了 SID-based user token。
 * **用粗粒度 item token 表示用户兴趣**：8 层 item SID 是空间里的一个“点”，4 层 user token 是一个“区域”。用户和 item 使用同一套 vocabulary，但处于不同粒度。Cold-Start ablation 的 `−17.1%` 说明这个简单设计非常有效。
 * **异步 serving 才是真正的 scale-up 关键**：一个昂贵的用户表示只生成一次，却能被许多下游模型重复使用。缓存和异步刷新让 LLM 用户建模在工业规模下变得可行。
-* **Token 化让跨场景统一变简单**：在共享 SID 空间里，合并长视频和 Shorts 只需要两个 condition token；一个模型就能替代两个模型。
+* **Token 化让跨场景统一变简单**：在共享 SID 空间里，合并长视频和短视频只需要两个 condition token；一个模型就能替代两个模型。
 
 ### 不足与可能的后续工作
 
-* **长视频上的收益较弱**：LFV 的满意互动只提升 `+0.08%`，明显小于 Shorts 的 `+0.62%`。这套方法可能更适合快速连续消费、反馈密集的场景。
-* **24 小时更新一次可能太慢**：尤其在 Shorts 中，兴趣可能在一个 session 内就快速变化。论文的 encoder-decoder 拆分本来就允许“重 encoder 慢更新、轻 decoder 快更新”，后续很值得真正利用这个能力。
+* **长视频上的收益较弱**：LFV 的满意互动只提升 `+0.08%`，明显小于短视频的 `+0.62%`。这套方法可能更适合快速连续消费、反馈密集的场景。
+* **24 小时更新一次可能太慢**：尤其在短视频中，兴趣可能在一个 session 内就快速变化。论文的 encoder-decoder 拆分本来就允许“重 encoder 慢更新、轻 decoder 快更新”，后续很值得真正利用这个能力。
 * **Learnable Embedding 增加了一层复杂度**：SID prefix 本身已经有层级语义，下游却仍然要通过 N-gram 或 SentencePiece 重新学习 embedding。如何更直接地利用 SID 结构，仍有优化空间。
 
 ### 大方向
