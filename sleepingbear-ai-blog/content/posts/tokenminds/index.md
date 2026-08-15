@@ -173,24 +173,25 @@ User modeling 输出的用户表示会被下游排序和召回模型使用。Tok
 | **长视频（LFV）** | Token-only | +0.01% | +0.04% |
 | | Embed + Token | **+0.02%** | **+0.08%** |
 
-*[论文](https://arxiv.org/abs/2606.25147) Table 4。粗体表示 = 1statistically significant at 95%*
+*[论文](https://arxiv.org/abs/2606.25147) Table 4。粗体表示结果具有统计显著性。*
 
-短视频上，embedding 和 token 一起使用的 `+0.62%`，甚至高于两者单独提升之和。这是论文很重要的结果：**dense embedding 更像是对历史的压缩，user token 更像是对未来兴趣的多路预测；它们是互补的。**
+短视频上，embedding 和 token 一起使用的 `+0.62%`，甚至高于两者单独提升之和。这是论文重要的结果：**dense embedding 更像是对历史的压缩，user token 更像是对未来兴趣的多路预测；它们是互补的。**
 
 ## 我的一些想法
 
-### 优势与启发
+### TokenMinds 的优势与启发
 
-* **把 Semantic ID 从 item 扩展到 user**：TIGER、OneRec 和 PLUM 证明了 SID 作为 item 表示的价值；TokenMinds 则第一次在 YouTube 量级验证了 SID-based user token。
-* **用粗粒度 item token 表示用户兴趣**：8 层 item SID 是空间里的一个“点”，4 层 user token 是一个“区域”。用户和 item 使用同一套 vocabulary，但处于不同粒度。Cold-Start ablation 的 `−17.1%` 说明这个简单设计非常有效。
-* **异步 serving 才是真正的 scale-up 关键**：一个昂贵的用户表示只生成一次，却能被许多下游模型重复使用。缓存和异步刷新让 LLM 用户建模在工业规模下变得可行。
-* **Token 化让跨场景统一变简单**：在共享 SID 空间里，合并长视频和短视频只需要两个 condition token；一个模型就能替代两个模型。
+* **把 Semantic ID 从 item 扩展到 user modeling**：TIGER、OneRec 和 PLUM 证明了 SID 作为 item 表示的价值；TokenMinds 则第一次在 YouTube 量级验证了 SID-based user token 的有效性。
+* **用粗粒度 item SID prefix 表示用户兴趣**：8 层 item SID 是语义空间里的一个“点”，4 层 user token 是一个“区域”。用户和 item 使用同一套 vocabulary，但处于不同粒度。Cold-Start ablation 的 `−17.1%` 说明这个简单设计非常有效。
+* **异步 serving 是真正的 scale-up 关键**：一个昂贵的用户表示只生成一次，却能被许多下游模型重复使用。缓存和异步刷新让 LLM 用户建模在工业规模下变得可行。
+* **Tokenization 让跨场景统一变简单**：在共享 SID 空间里，合并长视频和短视频只需要两个 condition token；一个模型就能替代两个模型。
+* **搜索查询对 LLM 用户建模很有用**：搜索查询单独使 Cold-Start Recall@10 提升 `+16.9%`，与 CPT 结合后达到 `+31.5%`。
 
-### 不足与可能的后续工作
+### TokenMinds 的不足与可能的后续工作
 
-* **长视频上的收益较弱**：LFV 的满意互动只提升 `+0.08%`，明显小于短视频的 `+0.62%`。这套方法可能更适合快速连续消费、反馈密集的场景。
+* **长视频上的收益较弱**：LFV 的满意互动只提升 `+0.08%`，明显小于短视频的 `+0.62%`。
 * **24 小时更新一次可能太慢**：尤其在短视频中，兴趣可能在一个 session 内就快速变化。论文的 encoder-decoder 拆分本来就允许“重 encoder 慢更新、轻 decoder 快更新”，后续很值得真正利用这个能力。
-* **Learnable Embedding 增加了一层复杂度**：SID prefix 本身已经有层级语义，下游却仍然要通过 N-gram 或 SentencePiece 重新学习 embedding。如何更直接地利用 SID 结构，仍有优化空间。
+* **Learnable Embedding 增加了复杂度**：SID prefix 本身已经有层级语义，下游模型却仍然要通过 N-gram 或 SentencePiece 为 SID prefix 的 sub-word 重新学习 embedding。如何更直接地利用 SID 结构，仍有优化空间。
 
 ### 大方向
 
