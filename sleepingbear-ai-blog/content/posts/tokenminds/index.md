@@ -35,17 +35,17 @@ TokenMinds 问了一个很自然的问题：**既然视频可以有 Semantic ID�
 * **输入**：用户看过的长视频和短视频、搜索词、点赞和点踩、观看时长等行为序列。
 * **输出**：一个能被下游召回或排序模型使用的用户表示。
 
-传统方法通常把整段用户行为序列压缩成一个 **dense user embedding**。这种表示简单好用，但有一个结构上的上限：一个人的多种兴趣，最终都压缩进一个固定长度的向量。
+传统方法通常把用户行为序列压缩成一个 **dense user embedding**。这种表示简单好用，但有一个结构上的上限：一个人的多种兴趣，最终都挤进一个固定长度的向量。
 
-另一条近年的路线是让 LLM 生成文字版用户画像，比如“喜欢烹饪节目和赛车”。但论文认为，这类画像更容易捕捉**话题共现**，不擅长行为序列中的动态变化；同时，文字和视频之间仍然存在 **modality gap**。
+另一种近年出现的方法是让 LLM 生成文字版用户画像，比如“喜欢烹饪节目和赛车”。但论文认为，这类画像更容易捕捉**话题共现**，却不擅长理解行为序列中的动态变化；同时，文字和视频之间仍然存在 **modality gap**。
 
 ![三种用户表示方式：(a) dense embedding 把 1,200 次观看压进一个 1,152 维向量；(b) LLM 生成类似“喜欢烹饪节目和赛车”的文字画像；(c) TokenMinds 同时输出 encoder user embedding 和 40 个基于 Semantic ID 的离散 user token。](user-representation.svg)
 
 *TokenMinds 的 user token 是视频 SID 的前缀：用户的“下一类兴趣”和视频使用同一种语言表示。（本图专为本文绘制，基于论文第 1、2 节。）*
 
-**TokenMinds 的核心想法**：直接用视频已经在使用的 SID vocabulary 来表示用户。一个 user token 就是一个视频 SID prefix，因此用户兴趣和候选视频天然处在同一个离散空间里，还继承了 SID 的层级语义。
+**TokenMinds 的核心想法**：直接用视频已经在使用的 SID vocabulary 来表示用户。一个 user token 就是一个视频 SID prefix，每个用户由 40 个这样的 user token 表示。因此，用户兴趣和候选视频天然处在同一个语义空间里，并继承了 SID 的层级语义（hierarchical semantic meaning）。
 
-更重要的是，它没有试图用 token 取代 embedding，而是同时输出两者。
+更重要的是，它没有试图用 token 完全取代 user embedding，而是同时输出两者作为用户表示。
 
 ## 方法详解
 
