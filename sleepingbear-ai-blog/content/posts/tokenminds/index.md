@@ -108,7 +108,9 @@ TokenMinds 提出了一种巧妙的 **multi-context decoding** 方案：用户�
 
 ### 下游模型怎么使用离散 user token？
 
-大多数下游模型仍然希望收到 embedding。论文测试了三种 token-to-embedding 方法：
+User modeling 输出的用户表示会被下游排序和召回模型使用。TokenMinds 同时输出 user embedding 和 user token: embedding 总结用户看过什么，token 则预测用户接下来会看什么。下游模型该如何把 user token 作为特征使用？
+
+论文测试了三种 token-to-embedding 方法：
 
 1. **Prefix Embedding Mapping（EM）**：找出具有相同 SID prefix 的视频，对它们原始 content embedding 求平均。
 2. **N-gram Embedding**：把 SID prefix 切成固定长度 sub-word，查询可学习的 embedding 后相加。
