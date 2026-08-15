@@ -106,7 +106,7 @@ Serving 时，统一模型仍然需要分别输出 LFV 和 SFV 场景的 user to
 
 TokenMinds 提出了一种巧妙的 **multi-context decoding** 方案：用户历史只 encode 一次，然后按场景将 decoding 分支为并行的 sub-batch，每个场景一个，并且全部共享相同的 encoder hidden states。结果是 serving inference 从 698 块芯片降到 481 块，节省 **31%**。
 
-### 下游模型怎么使用离散 user token？
+### 下游模型怎么使用 user token？
 
 User modeling 输出的用户表示会被下游排序和召回模型使用。TokenMinds 同时输出 user embedding 和 user token: embedding 总结用户看过什么，token 则预测用户接下来会看什么。下游模型该如何把 user token 作为特征使用？
 
@@ -116,17 +116,17 @@ User modeling 输出的用户表示会被下游排序和召回模型使用。Tok
 2. **N-gram Embedding**：把 user token（SID prefix）切成固定长度的 sub-word，为每个 sub-word 学习一个 embedding，再把它们相加。
 3. **SPM Embedding**：与方法 2 相同，但使用 SentencePiece 学习可变长度的 sub-word。
 
-方法 2 和 3 统称 **Learnable Embeddings（LE）**——它们使用随机初始化的 embedding table，并与下游模型一起端到端训练。用户的 40 个 token 都以这种方式转换成 embedding，然后 pooling 成一个 user vector。短视频线上实验中，LE 带来 `+0.22%` 满意互动，而静态 EM 是 `−0.02%`：让下游模型自己学习 token embedding 更有效。
+方法 2 和 3 统称 **Learnable Embeddings（LE）**——它们使用随机初始化的 embedding table，并与下游模型一起端到端训练。用户的 40 个 token 都以这种方式转换成 embedding，然后 pooling 成一个 user vector。短视频线上实验显示：LE（让下游模型自己学习 token embedding）比静态 EM 更有效，满意互动分别为 `+0.22%` 和 `−0.02%`。
 
-### Serving：缓存 + 异步更新
+### Serving：缓存（Caching）+ 异步更新
 
 ![论文 Figure 4：线上请求先从 User Representation Table 读取缓存；数据缺失或过期时，异步 Refresh Service 读取用户历史、请求 TokenMinds 生成新表示，再写回缓存。](fig4-serving.png)
 
 *TokenMinds 的 serving 架构。（[论文](https://arxiv.org/abs/2606.25147) Figure 4，Liu et al., 2026。）*
 
-要让生成式模型服务数十亿用户，关键不是让它同步响应每一次排序请求，而是**把生成成本摊到后续许多次使用上**。TokenMinds 每 24 小时在后台生成用户表示并写入 key-value store；线上模型直接读缓存，缺失或过期时再异步刷新。
+为了让一个计算量很大的生成式模型能在数十亿用户规模下运行，用户表示由后台每 24 小时生成一次，并缓存在 key-value store 中；user model 请求直接读取 cache。发生 cache miss 或缓存过期时，后台 refresh service 会重新生成用户表示。
 
-生产环境达到 **144 万次读取/秒、96.4% cache hit rate**。存储上，每个用户的 token 表示占 **1,280 bytes**，dense embedding 则占 **4,608 bytes**。
+生产环境达到 **144 万次读取/秒、96.4% cache hit rate**。存储上，每个用户的 user token 表示占 **1,280 bytes**，user embedding 则占 **4,608 bytes**。
 
 ## 实验与结果
 
