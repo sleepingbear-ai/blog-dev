@@ -173,7 +173,7 @@ User modeling 输出的用户表示会被下游排序和召回模型使用。Tok
 | **长视频（LFV）** | Token-only | +0.01% | +0.04% |
 | | Embed + Token | **+0.02%** | **+0.08%** |
 
-*[论文](https://arxiv.org/abs/2606.25147) Table 4。粗体表示在 95% 置信水平下显著。*
+*[论文](https://arxiv.org/abs/2606.25147) Table 4。粗体表示 = 1statistically significant at 95%*
 
 短视频上，embedding 和 token 一起使用的 `+0.62%`，甚至高于两者单独提升之和。这是论文很重要的结果：**dense embedding 更像是对历史的压缩，user token 更像是对未来兴趣的多路预测；它们是互补的。**
 
