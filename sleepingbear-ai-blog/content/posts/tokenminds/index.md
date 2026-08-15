@@ -96,13 +96,15 @@ Loss 里的三个设计是整个方法的核心：
 
 长视频和短视频的消费方式明显不同，工业系统通常为它们训练两个用户模型。但论文指出：接近一半用户会同时使用两种形式，而且两者 SID 前两层的 vocabulary 有约 **40% 重叠**。用户兴趣并不会按视频形式彻底分开。
 
-TokenMinds 只需在每次观看前加 `<LFV>` 或 `<SFV>`，就能把两类行为按时间统一输入同一个模型。Condition token 不参与 loss——预测它们太简单，反而会降低模型质量。
+TokenMinds 只需在每次观看前加一个 condition token（`<LFV>` 或 `<SFV>`），就能把两类行为按时间统一输入同一个模型。搜索查询也以同样的方式加入序列，并以 `<Search>` 作为前缀。Condition token 不参与 loss calculation——预测它们太简单，反而会降低模型质量。
+
+Serving 时，统一模型仍然需要分别输出 LFV 和 SFV 场景的 user token。一个朴素的方法是 **Separate Per-Context Inference**：分别为 LFV 和 SFV 运行一次 inference——这会让 encoder 重复计算两次：
 
 ![论文 Figure 3：左边为每个场景分别跑一次完整 inference；右边的 multi-context decoding 只 encode 一次，再为 LFV 和 SFV 分出两个共享 encoder hidden states 的并行 decoder sub-batch。](fig3-multi-context-decoding.png)
 
 *Multi-context decoding：一次 encode，按场景并行 decode。（[论文](https://arxiv.org/abs/2606.25147) Figure 3，Liu et al., 2026。）*
 
-线上仍然需要分别输出 LFV 和 SFV 的 user token。朴素方案要把同一段历史 encode 两遍；TokenMinds 的 **multi-context decoding** 只 encode 一遍，再分成两个共享 hidden states 的 decoder sub-batch。结果是训练算力减半，serving 从 698 块芯片降到 481 块，节省 **31%**。
+TokenMinds 提出了一种巧妙的 **multi-context decoding** 方案：用户历史只 encode 一次，然后按场景将 decoding 分支为并行的 sub-batch，每个场景一个，并且全部共享相同的 encoder hidden states。结果是 serving inference 从 698 块芯片降到 481 块，节省 **31%**。
 
 ### 下游模型怎么使用离散 user token？
 
