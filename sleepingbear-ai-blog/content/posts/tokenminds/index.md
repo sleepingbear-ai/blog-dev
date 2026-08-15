@@ -112,11 +112,11 @@ User modeling 输出的用户表示会被下游排序和召回模型使用。Tok
 
 论文测试了三种 token-to-embedding 方法：
 
-1. **Prefix Embedding Mapping（EM）**：找出具有相同 SID prefix 的视频，对它们原始 content embedding 求平均。
-2. **N-gram Embedding**：把 SID prefix 切成固定长度 sub-word，查询可学习的 embedding 后相加。
-3. **SPM Embedding**：用 SentencePiece 学习可变长度 sub-word，再查询 embedding。
+1. **Prefix Embedding Mapping（EM）**：把每个 user token（SID prefix）映射回所有共享该 prefix 的视频的原始 content embedding 均值 (mean)；这些 content embedding 正是生成视频 SID 时的输入。
+2. **N-gram Embedding**：把 user token（SID prefix）切成固定长度的 sub-word，为每个 sub-word 学习一个 embedding，再把它们相加。
+3. **SPM Embedding**：与方法 2 相同，但使用 SentencePiece 学习可变长度的 sub-word。
 
-后两种统称 **Learnable Embeddings（LE）**。每个用户的 40 个 token 分别被 embedding，再 pooling 成一个用户向量。短视频线上实验中，LE 带来 `+0.22%` 满意互动，而静态 EM 是 `−0.02%`：让下游模型自己学习 token embedding 更有效。
+方法 2 和 3 统称 **Learnable Embeddings（LE）**——它们使用随机初始化的 embedding table，并与下游模型一起端到端训练。用户的 40 个 token 都以这种方式转换成 embedding，然后 pooling 成一个 user vector。短视频线上实验中，LE 带来 `+0.22%` 满意互动，而静态 EM 是 `−0.02%`：让下游模型自己学习 token embedding 更有效。
 
 ### Serving：缓存 + 异步更新
 
