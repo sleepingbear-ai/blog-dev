@@ -18,15 +18,15 @@ summary = """
 
 生成式推荐先给每个 item 分配一个 **Semantic ID（SID）**，再用自回归模型把推荐变成 **Next SID Prediction**。[TIGER](../tiger-generative-retrieval/) 开创了这个方向，[PLUM](../plum/) 则把 Gemini LLM 改造成了 YouTube 的线上生成式召回模型。
 
-TokenMinds 接着问了一个很自然的问题：**既然视频可以有 Semantic ID，用户能不能也用 Semantic ID 表示？**
+TokenMinds 问了一个很自然的问题：**既然视频可以有 Semantic ID，用户能不能也用 Semantic ID 表示？**
 
-它的答案是一个已经部署到 YouTube 全量流量的 LLM 用户建模系统：
+它的答案是一个已经部署于 YouTube 全量推荐流量的 LLM 用户建模系统：
 
-1. **双重输出**：一个从 PLUM 预训练 LLM warm-start 的 encoder-decoder 读取用户行为。Encoder 生成一个 1,152 维 dense user embedding；decoder 用 beam search 生成 **40 个基于 SID 的离散 user token**。两者都作为特征交给下游排序模型。
-2. **一个模型统一两个场景**：用 `<LFV>` / `<SFV>` token 区分长视频和 Shorts，只做一次共享 encoder 计算，再分别 decode 两组 user token，节省 **50% 训练算力和 31% serving 算力**。
-3. **异步服务**：每 24 小时离线更新一次用户表示并写入缓存。线上每秒读取 **144 万次**，cache hit rate 达到 **96.4%**；miss 时再异步触发生成。
+1. **User Modeling 双重输出**：模型是一个从 PLUM 预训练 LLM warm-start 的 encoder-decoder，负责读取用户行为。Encoder 生成一个 1,152 维 dense user embedding；decoder 用 beam search 生成 **40 个基于 SID 的 user token**。两者都作为特征交给下游排序模型。
+2. **一个模型统一两个场景**：用 `<LFV>` / `<SFV>` token 区分长视频（Long-Form Video）和短视频（Short-Form Video）场景，只做一次共享 encoder inference，再分别 decode 两组 user token，节省 **50% 训练算力和 31% serving 算力**。
+3. **异步服务**：每 24 小时离线更新一次用户表示并写入 cache。线上每秒读取 **144 万次**，cache hit rate 达到 **96.4%**；miss 时再异步触发生成。
 
-最有说服力的是线上结果。在 YouTube Shorts 上，单独加入 embedding 带来 `+0.05%` 满意互动，单独加入 token 是 `+0.40%`，**两者一起则达到 `+0.62%`**。这说明 user token 和 user embedding 不是重复的表示，而是可以互补。
+最有说服力的是线上结果。在 YouTube 短视频推荐场景中，单独加入 embedding 带来 `+0.05%` 满意互动，单独加入 token 是 `+0.40%`，**两者一起则达到 `+0.62%`**。这说明在 user modeling 中，user token 和 user embedding 不是重复的表示，而是可以互补。
 
 ## 问题在哪：怎么表示一个用户？
 
