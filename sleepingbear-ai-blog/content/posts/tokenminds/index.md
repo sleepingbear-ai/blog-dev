@@ -130,7 +130,7 @@ User modeling 输出的用户表示会被下游排序和召回模型使用。Tok
 
 ## 实验与结果
 
-线上模型基于 **Gemini-1.5 LLM**：370M MoE encoder + 370M dense decoder，都从 PLUM 的 CPT checkpoint 初始化。模型每天用最新数据持续训练，只需要每天数百万条样本；相比之下，基于 Large Embedding Model（LEM）的模型通常需要数十亿次 interaction。
+线上模型基于 **Gemini-1.5 LLM**：370M MoE encoder + 370M dense decoder，都从 PLUM 的 CPT checkpoint 初始化。模型每天用最新数据持续训练，只需要每天数百万条样本；相比之下，基于 Large Embedding Model（LEM）的模型通常需要数十亿次用户交互。
 
 **训练 ablation**（指标为 SID prefix 的 Recall@10）：
 
@@ -141,9 +141,9 @@ User modeling 输出的用户表示会被下游排序和召回模型使用。Tok
 | − Look-ahead Window | 0.278（−4.5%） | 0.189（−10.0%） |
 | − SID Truncation | 0.247（−15.1%） | 0.174（−17.1%） |
 
-*[论文](https://arxiv.org/abs/2606.25147) Table 1。Session Recall 预测当前 session 最后一次观看；Cold-Start Recall 从截短历史预测随机的未来观看。*
+*[论文](https://arxiv.org/abs/2606.25147) Table 1。Session Recall 预测当前 session 最后一次观看；Cold-Start Recall 从截短的观看历史预测随机的未来观看。*
 
-在 Cold-Start 上，去掉 Look-ahead Window 损失 10%，去掉 SID truncation 损失 17.1%。这说明：预测更远、更广的兴趣，以及用粗粒度 SID 表示兴趣，对泛化尤其重要。
+在 Cold-Start 上，去掉 Look-ahead Window 损失 10%，去掉 SID truncation 损失 17.1%。这说明：预测更远、更广的兴趣，以及用粗粒度 SID prefix 表示兴趣，对泛化尤其重要。
 
 **LLM 初始化和搜索词的作用**（相对“随机初始化、无搜索词”baseline 的 Recall@10 提升）：
 
