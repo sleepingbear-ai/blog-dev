@@ -78,6 +78,8 @@ TokenMinds 的输入比普通的 user watch-history 丰富：
 
 ### 模型训练：不只预测“下一个视频”
 
+给定一段用户历史，模型会生成一组 SID prefix，表示用户在接下来一段时间内可能观看的视频。
+
 ![论文 Figure 2：历史观看序列进入由 CPT 初始化的 encoder；同样由 CPT 初始化的 decoder 自回归生成未来 24 小时内多个随机观看视频的 SID。](fig2-training.png)
 
 *Encoder 读用户历史，decoder 一次生成未来 24 小时内多个观看目标的 SID。（[论文](https://arxiv.org/abs/2606.25147) Figure 2，Liu et al., 2026。）*
@@ -86,7 +88,7 @@ TokenMinds 的输入比普通的 user watch-history 丰富：
 
 *TokenMinds 模型的 Loss Function（论文 Equation 1，本图专为本文标注）。*
 
-Loss 里的三个设计是整个方法的核心：
+模型训练里的三个设计是整个方法的核心：
 
 * **Look-ahead sampling**：不只预测紧接着的下一次观看，而是从**未来 24 小时**的观看里随机抽最多 `N=15` 个目标。这是因为用户模型应该表示一段时间内的多种兴趣，而不是过拟合某一次偶然点击。
 * **SID truncation**：视频的完整 SID 有 8 层，训练和输入编码只保留前 **4 层**。一个短前缀代表视频库里的一个语义区域，而不是某一个具体视频，所以更能表达“兴趣”，也减少记忆训练 item 的倾向。
