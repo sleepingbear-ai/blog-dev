@@ -100,7 +100,7 @@ TokenMinds 的输入比普通的 user watch-history 丰富：
 
 长视频和短视频的消费方式明显不同，工业系统通常为它们训练两个用户模型。但论文指出：接近一半用户会同时使用两种形式，而且两者 SID 前两层的 vocabulary 有约 **40% 重叠**。用户兴趣并不会按视频形式彻底分开。
 
-TokenMinds 只需在每次观看前加一个 condition token（`<LFV>` 或 `<SFV>`），就能把两类行为按时间统一成一个用户行为序列输入同一个模型。用户的搜索查询也以同样的方式加入序列，并以 `<Search>` 作为前缀。Condition token 不参与 loss calculation——预测它们太简单，反而会降低模型质量。
+TokenMinds 只需在每次观看前加一个 condition token（`<LFV>` 或 `<SFV>`），就能把两类行为按时间统一成一个用户行为序列，再输入同一个模型。用户的搜索查询也以同样的方式加入序列，并以 `<Search>` 作为前缀。Condition token 不参与 loss calculation——预测它们太简单，反而会降低模型质量。
 
 Serving 时，统一模型仍然需要分别输出 LFV 和 SFV 场景的 user token。一个朴素的方法是 **Separate Per-Context Inference**：分别为 LFV 和 SFV 运行一次 inference——这会让 encoder 重复计算两次：
 
@@ -116,7 +116,7 @@ User modeling 输出的用户表示会被下游排序和召回模型使用。Tok
 
 论文测试了三种 token-to-embedding 方法：
 
-1. **Prefix Embedding Mapping（EM）**：把每个 user token（SID prefix）映射回所有共享该 prefix 的视频的原始 content embedding 均值（mean）；这些 content embedding 正是生成视频 SID 时的输入。
+1. **Prefix Embedding Mapping（EM）**：把每个 user token（SID prefix）映射回所有共享该 prefix 的视频对应的原始 content embedding（这些 embedding 正是生成视频 SID 时的输入），然后取均值（mean）。
 2. **N-gram Embedding**：把 user token（SID prefix）切成固定长度的 sub-word，为每个 sub-word 学习一个 embedding，再把它们相加。
 3. **SPM Embedding**：与方法 2 相同，但使用 SentencePiece 学习可变长度的 sub-word。
 
