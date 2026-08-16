@@ -4,11 +4,11 @@ draft = false
 title = 'TokenMinds 解释和思考：面向 YouTube 推荐的 LLM 用户建模'
 tags = ['ai', '推荐系统', '生成式推荐', '用户建模', 'tokenminds', 'semanticid', 'llm', 'gemini', 'youtube', '人工智能', 'ai学习', '大模型']
 summary = """
-  *TokenMinds（Google DeepMind & YouTube）用一个基于 Gemini LLM 的 encoder-decoder 同时生成用户 embedding 和 40 个离散 user token，把长视频与短视频的用户建模统一到一个模型里，并通过异步生成和 Cache 服务数十亿用户。它把 YouTube PLUM 的生成式推荐框架从召回推进到了 user modeling。*
+  *TokenMinds（Google DeepMind & YouTube）用一个基于 Gemini LLM 的 encoder-decoder 同时生成 user embedding 和 40 个离散 user token，把长视频与短视频的用户建模统一到一个模型里，并通过异步生成和 Cache 服务数十亿用户。它把 YouTube PLUM 的生成式推荐框架从召回推进到了 user modeling。*
 """
 +++
 
-*TokenMinds（Google DeepMind & YouTube）用一个基于 Gemini LLM 的 encoder-decoder 同时生成用户 embedding 和 40 个离散 user token，把长视频与短视频的用户建模统一到一个模型里，并通过异步生成和 Cache 服务数十亿用户。它把 YouTube PLUM 的生成式推荐框架从召回推进到了 user modeling。*
+*TokenMinds（Google DeepMind & YouTube）用一个基于 Gemini LLM 的 encoder-decoder 同时生成 user embedding 和 40 个离散 user token，把长视频与短视频的用户建模统一到一个模型里，并通过异步生成和 Cache 服务数十亿用户。它把 YouTube PLUM 的生成式推荐框架从召回推进到了 user modeling。*
 
 论文：**[TokenMinds: Pretrained User Tokens and Embeddings for User Understanding in Large Recommender Systems](https://arxiv.org/abs/2606.25147)**（Liu et al., Google DeepMind & YouTube, 2026 年 6 月）
 
@@ -24,9 +24,9 @@ TokenMinds 问了一个很自然的问题：**既然视频可以有 Semantic ID�
 
 1. **User Modeling 双重输出**：模型是一个从 PLUM 预训练 LLM warm-start 的 encoder-decoder，负责读取用户行为。Encoder 生成一个 1,152 维 dense user embedding；decoder 用 beam search 生成 **40 个基于 SID 的 user token**。两者都作为特征交给下游排序模型。
 2. **一个模型统一两个场景**：用 `<LFV>` / `<SFV>` token 区分长视频（Long-Form Video）和短视频（Short-Form Video）场景，只做一次共享 encoder inference，再分别 decode 两组 user token，节省 **50% 训练算力和 31% serving 算力**。
-3. **异步服务**：每 24 小时离线更新一次用户表示并写入 cache。线上每秒读取 **144 万次**，cache hit rate 达到 **96.4%**；miss 时再异步触发生成。
+3. **异步服务**：每 24 小时离线更新一次用户表示并写入 cache。线上每秒读取 **144 万次**，cache hit rate 达到 **96.4%**；cache miss 时再异步触发生成。
 
-最有说服力的是线上结果。在 YouTube 短视频推荐场景中，单独加入 embedding 带来 `+0.05%` 满意互动，单独加入 token 是 `+0.40%`，**两者一起则达到 `+0.62%`**。这说明在 user modeling 中，user token 和 user embedding 不是重复的表示，而是可以互补。
+线上结果：在 YouTube 短视频推荐场景中，单独加入 embedding 带来 `+0.05%` 满意互动，单独加入 token 是 `+0.40%`，**两者一起则达到 `+0.62%`**。这说明在 user modeling 中，user token 和 user embedding 不是重复的表示，而是可以互补。
 
 ## User Modeling：如何表示一个用户？
 
@@ -35,7 +35,7 @@ TokenMinds 问了一个很自然的问题：**既然视频可以有 Semantic ID�
 * **输入**：用户看过的长视频和短视频、搜索词、点赞和点踩、观看时长等行为序列。
 * **输出**：一个能被下游召回或排序模型使用的用户表示。
 
-传统方法通常把用户行为序列压缩成一个 **dense user embedding**。这种表示简单好用，但有一个结构上的上限：一个人的多种兴趣，最终都挤进一个固定长度的向量。
+传统方法通常把用户行为序列压缩成一个 **dense user embedding**。这种表示简单好用，但有一个结构上的上限：一个用户的多种兴趣，最终都挤进一个固定长度的向量。
 
 另一种近年出现的方法是让 LLM 生成文字版用户画像，比如“喜欢烹饪节目和赛车”。但论文认为，这类画像更容易捕捉**话题共现**，却不擅长理解行为序列中的动态变化；同时，文字和视频之间仍然存在 **modality gap**。
 
@@ -43,13 +43,13 @@ TokenMinds 问了一个很自然的问题：**既然视频可以有 Semantic ID�
 
 *TokenMinds 的 user token 是视频 SID 的前缀：用户的“下一类兴趣”和视频使用同一种语言表示。（本图专为本文绘制，基于论文第 1、2 节。）*
 
-**TokenMinds 的核心想法**：直接用视频已经在使用的 SID vocabulary 来表示用户。一个 user token 就是一个视频 SID prefix，每个用户由 40 个这样的 user token 表示。因此，用户兴趣和候选视频天然处在同一个语义空间里，并继承了 SID 的层级语义（hierarchical semantic meaning）。
+**TokenMinds 的核心想法**：直接用已经在使用的视频 SID vocabulary 来表示用户。一个 user token 就是一个视频 SID prefix，每个用户由 40 个这样的 user token 表示。因此，用户兴趣和候选视频天然处在同一个语义空间里，并继承了 SID 的层级语义（hierarchical semantic meaning）。
 
 更重要的是，它没有试图用 token 完全取代 user embedding，而是同时输出两者作为用户表示。
 
 ## 方法详解
 
-TokenMinds 沿用了 PLUM 的基础模块：同一个基于多模态视频 content embedding 的 RQ-VAE tokenizer，以及教会 Gemini LLM 理解 video SID 的 Continued Pre-Training（CPT）。如果你对这部分不熟悉，可以先看我的 [PLUM 解读](../plum/)；RQ-VAE 的细节则在 [TIGER 解读](../tiger-generative-retrieval/) 里。
+TokenMinds 沿用了 PLUM 的基础模块：同一个基于多模态视频 content embedding 的 RQ-VAE tokenizer，以及教会 Gemini LLM 理解 video SID 的 Continued Pre-Training（CPT）。如果你对这部分不熟悉，可以看我的 [PLUM 解读](../plum/)；RQ-VAE 的细节则在 [TIGER 解读](../tiger-generative-retrieval/) 里。
 
 ![论文 Figure 1：按时间排序的长视频、短视频、搜索和互动信号进入 encoder；decoder 通过 cross-attention 读取 encoder 输出并生成 SID user tokens，encoder 同时生成 dense user embedding；两种表示一起交给下游模型。](fig1-overview.png)
 
@@ -57,19 +57,19 @@ TokenMinds 沿用了 PLUM 的基础模块：同一个基于多模态视频 conte
 
 ### 输入：不只是普通的用户观看历史
 
-TokenMinds 的输入比普通的 user watch-history 模型丰富：
+TokenMinds 的输入比普通的 user watch-history 丰富：
 
 * **跨场景观看行为**：长视频（LFV）和短视频（SFV）来自多个推荐入口（homepage recommendations、watch-next suggestions），按时间顺序交错排列。
-* **搜索查询**：显式表达用户意图。因为 CPT 已经把文本 token 和 SID 放进同一个 vocabulary，最近 **10 条**搜索可以直接用 `<Search>` token 加入序列。
+* **搜索查询**：显式表达用户意图。因为 CPT 已经把文本 token 和 SID 放进同一个 vocabulary，用户的最近 **10 条**搜索可以直接用 `<Search>` token 加入序列。
 * **互动信号**：每次观看的时长、观看比例、点赞、点踩、设备和时间戳。
 
-每次观看被压缩成一个很小的固定 token budget：
+每次观看被压缩成一个很短的固定 token 序列：
 
 `<LFV|SFV>` + **4 个 SID token** + **1 个 soft token**
 
-前两部分表示视频场景和 SID；剩下的非 SID 特征各自 embedding 后拼接，再经过 MLP 投影成一个 soft token。
+前两部分表示视频场景和 SID；剩下的非 SID 特征先各自 embedding 后拼接，再经过 MLP 投影成一个 soft token。
 
-### 为什么用 encoder-decoder？
+### 模型架构：为什么用 encoder-decoder？
 
 这个架构有两个直接好处：
 
