@@ -203,7 +203,7 @@ User modeling 输出的用户表示会被下游排序和召回模型使用。Tok
 
 它也提醒我们，user token 不一定要取代 user embedding。Token 更适合表示离散、多样、面向未来的兴趣，embedding 更适合连续、紧凑地总结历史；两者结合可能才是更完整的用户表示。
 
-把这几篇工作连起来看，会形成一条很清楚的路线：**[TIGER](../tiger-generative-retrieval/) → [PLUM](../plum/) → TokenMinds**——先把 item 变成语义 token，再教 LLM 理解这些 token，最后用同一种 token 语言表示用户。随着 LLM inference 继续变便宜、变强大，生成式推荐的下一波创新很可能会沿着同一方向继续：把用户、多模态内容和跨场景行为统一到一个可生成、可组合的 token 语义空间中。
+把这几篇工作连起来看，会形成一条很清楚的路线：**[TIGER](../tiger-generative-retrieval/) → [PLUM](../plum/) → TokenMinds**——先把 item 变成语义 token，再教 LLM 理解这些 token，最后用同一种 token 语言表示用户。随着 LLM inference 继续变便宜、变强大，生成式推荐的下一波创新很可能会沿着这一方向发展：把用户、多模态内容和跨场景行为统一到一个可生成、可组合的 token 语义空间中。
 
 ## 参考文献
 
