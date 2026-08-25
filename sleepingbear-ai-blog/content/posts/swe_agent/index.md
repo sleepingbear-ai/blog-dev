@@ -128,11 +128,11 @@ GPT-4 Turbo 在 SWE-bench Lite 上的问题解决率为：**Editor with Linting�
 
 * **Full History**：完整保留过去所有 observation，包括旧的文件内容和测试输出。
 * **Last 5 Observations（SWE-agent 的方案）**：最近 5 个 observation 完整保留；更早的 observation 被替换成一行 placeholder，保留它在执行轨迹中的位置，并标记省略了多少行。
-* **Without Demonstration**：同样使用 Last 5 Observations，但从 prompt 中移除 few-shot demonstration。这个 demonstration 是一个来自开发集的成功解题轨迹，主要作用是教 LLM 如何正确输出 ACI 命令。
+* **Without Demonstration**：同样使用 Last 5 Observations，但从 prompt 中移除 few-shot demonstration。这个 demonstration 是一个成功解题轨迹，主要作用是教 LLM 如何正确生成 ACI 工具调用。
 
 GPT-4 Turbo 在 SWE-bench Lite 上的问题解决率为：**Last 5 Observations（18.0%）> Without Demonstration（16.3%）> Full History（15.0%）**。
 
-这里体现了 context management 的两个作用：few-shot trajectory 教模型如何正确使用工具；历史压缩则让近期、相关的信息获得更高优先级。
+这里体现了 context management 的两个作用：few-shot demonstration 教模型如何正确使用工具；Context 压缩则让近期、相关的信息获得更高优先级。
 
 ## 实验与结果
 
