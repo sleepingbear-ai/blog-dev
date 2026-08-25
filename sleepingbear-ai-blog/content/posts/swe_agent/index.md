@@ -172,7 +172,7 @@ SWE-agent 对 Coding Agent，乃至更广泛的 AI Agent 设计，都提供了�
 
 ### 局限与今天的视角
 
-* SWE-agent 是围绕 2024 年的特定 LLM 优化的。更新、更强的模型可能适合不同的 action 粒度和 context policy。
+* SWE-agent 是围绕 2024 年的特定 LLM 优化的。更新、更强的模型可能需要不同的 action 粒度和 context policy。
 * AI Agent 技术发展很快。Skills、更成熟的 Agent harness 和 Multi-Agent System 可以让 Agent 完成更复杂的任务；论文发表于 2024 年，自然没有涵盖这些后来日益重要的方向。
 * 随着 LLM 能力增强，SWE-agent 中一些由固定规则完成的工作，现在也可能交给模型处理。例如，让 LLM 主动总结交互历史，并动态选择最相关的 context。
 
@@ -188,7 +188,7 @@ SWE-agent 最重要的观点是：**LLM 周围的 interface 本身就是 Agent �
 * 有限的 context 应该如何分配？
 * 怎样用 evaluation 判断一种界面设计是否真的更好？
 
-SWE-agent 之所以是 Coding Agent 领域的经典论文，正是因为它把“Interface 决定 Agent 能力”这个观点，变成了一套具体、可实验、可复用的设计原则。
+SWE-agent 之所以是 Coding Agent 领域的经典论文，正是因为它把“Interface 决定 Agent 能力”这个观点，变成了一套由实验数据驱动、具体且可复用的 Agent 设计原则。
 
 ## 参考文献
 
