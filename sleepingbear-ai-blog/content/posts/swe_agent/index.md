@@ -67,7 +67,7 @@ ACI 定义的不只是一组工具，还包括：
 3. **Informative but concise（信息充分但简洁）**：反馈要让模型知道状态发生了什么变化，但不能用冗长输出淹没 context。
 4. **Guarded（有保护机制）**：常见错误应该在扩散之前被发现和阻止。
 
-SWE-agent 把这些原则实现成一个 ReAct 风格的 Agent Loop：LLM 每轮输出 **一段思考和一个 action**，环境执行 action，ACI 再返回格式化后的 observation。
+SWE-agent 把这些原则实现成一个 ReAct 风格的 Agent Loop：LLM 每轮输出 **一段思考和一个 action**，Agent 运行环境执行该 action，再通过 ACI 将格式化后的 observation 返回给 LLM。
 
 ```text
 GitHub issue + 代码仓库
