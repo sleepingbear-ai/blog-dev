@@ -175,6 +175,7 @@ SWE-agent 对 Coding Agent，乃至更广泛的 AI Agent 设计，都提供了�
 * SWE-agent 是围绕 2024 年的特定 LLM 优化的。更新、更强的模型可能需要不同的 action 粒度和 context policy。
 * AI Agent 技术发展很快。Skills、更成熟的 Agent harness 和 Multi-Agent System 可以让 Agent 完成更复杂的任务；论文发表于 2024 年，自然没有涵盖这些后来日益重要的方向。
 * 随着 LLM 能力增强，SWE-agent 中一些由固定规则完成的工作，现在也可能交给模型处理。例如，让 LLM 主动总结交互历史，并动态选择最相关的 context。
+* Evaluation 驱动的设计还可以与正在探索的 self-improving loop 技术结合，形成持续评估、迭代和改进 Agent 的研发闭环。
 
 ### 大方向
 
