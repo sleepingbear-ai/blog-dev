@@ -31,15 +31,13 @@ SWE-agent 是一篇关于 **Coding Agent** 的经典论文。它讨论的重点�
 
 ## 问题：Coding Agent 不只是一个 LLM
 
-真实的软件工程任务要求 Agent 理解代码库、修复 GitHub issue，并提交能够通过测试的 patch。
+真实的软件工程任务要求 Agent 理解代码库、修复 GitHub issue，并提交能够通过测试的 patch。为此，Agent 通常要反复完成这些步骤：
 
-为此，Agent 通常要反复完成这些步骤：
-
-1. 定位相关代码；
-2. 复现并理解 bug；
-3. 修改文件；
-4. 运行程序和测试；
-5. 分析失败原因，再次修改。
+1. 定位相关代码
+2. 复现并理解 bug
+3. 修改文件
+4. 运行程序和测试
+5. 分析失败原因，再次修改
 
 这不是一次性的代码生成，而是一个 **ReAct 风格的 Agent Loop**。
 
@@ -47,9 +45,9 @@ SWE-agent 是一篇关于 **Coding Agent** 的经典论文。它讨论的重点�
 
 *SWE-agent = LLM + ACI，而不只是一个被要求输出代码的 LLM。（[论文](https://arxiv.org/abs/2405.15793) Figure 1，Yang et al., 2024。）*
 
-早期 SWE-bench baseline 使用的是非交互式 **RAG**：先用 BM25 找出可能相关的文件，再让模型 **一次性**生成答案。这种方法成本低，但无法形成 Agent Loop——模型看到 stack trace 后不能继续检查另一个文件，也不能运行代码、测试第一次修改，再根据结果迭代。
+早期 SWE-bench baseline 使用的是非交互式 **RAG**：先用 BM25 搜索出可能相关的文件，再让模型 **一次性**生成答案。这种方法成本低，但无法形成 Agent Loop——例如，模型看到 stack trace 后不能继续检查另一个文件，也不能运行代码、测试第一次修改，再根据结果迭代。
 
-为了对比，论文还测试了一个只使用原始 Linux shell 的 **Shell-only Agent**。它虽然能执行 `cd`、`grep`、`sed` 等命令，并形成 Agent Loop，但也会遇到新的问题：Agent 可能浪费很多轮调用去组合底层命令，让过长的输出淹没 context，或者做出思路正确、却破坏语法的修改。
+为了对比，论文还测试了一个只把原始 Linux shell 作为工具调用的 **Shell-only Agent**。它虽然能执行 `cd`、`grep`、`sed` 等命令，并形成 Agent Loop，但也会遇到新的问题：Agent 可能浪费很多轮调用去组合底层命令，让过长的命令输出淹没 context window，或者做出思路正确、却存在语法错误的代码修改。
 
 **SWE-agent 的答案**：为 Coding Agent 设计结构化、有效的工具，同时做好 context management 和 guardrails。
 
