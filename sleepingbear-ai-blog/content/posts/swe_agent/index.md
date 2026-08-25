@@ -105,14 +105,14 @@ Iterative Search 对人类来说可能很熟悉，但 Agent 很容易机械地�
 论文也比较了三种代码编辑接口：
 
 * **No Editor**：Agent 使用 `sed` 或文件重定向等 shell 命令修改代码，需要多个步骤，而且操作后的反馈很弱。
-* **Editor without Linting**：`edit` 命令直接替换当前文件的一段行区间，并立即显示修改后的文件，但即使修改引入语法错误也会接受。
-* **Editor with Linting**：如果修改破坏语法，Editor 会拒绝这次修改，并同时显示错误信息和附近代码，让 Agent 能够立即恢复。
+* **Editor without Linting**：`edit` 命令直接替换当前文件中的一段连续行，并立即显示修改后的文件，但即使修改引入语法错误也会接受。
+* **Editor with Linting**：如果修改产生语法错误，Editor 会执行 lint 检查并拒绝这次修改，同时显示错误信息和附近代码，让 Agent 能够立即恢复。
 
-SWE-agent 最终选择 **Editor with Linting**：用一次紧凑的 action 完成代码修改，立即反馈结果，并通过 linting guardrail 防止无效修改继续传播。
+SWE-agent 最终选择 **Editor with Linting**：用一次紧凑的 action 完成代码修改，立即反馈结果，并通过 linting guardrail 防止错误修改继续传播。
 
 ![论文中的编辑接口对比：使用原始 shell 编辑需要多个命令、反馈较弱；专用 edit action 一步完成修改；linting 会在语法错误扩散前拒绝这次修改。](fig4-edit-comparison.png)
 
-*Editor 并不是无关紧要的实现细节：在所有 ACI ablation 中，移除专用 Editor 带来的性能下降最大。（[论文](https://arxiv.org/abs/2405.15793) Figure 5。）*
+*Editor 并非无关紧要的实现细节：在所有 ACI ablation 中，移除专用 Editor 带来的性能下降最大。（[论文](https://arxiv.org/abs/2405.15793) Figure 5。）*
 
 GPT-4 Turbo 在 SWE-bench Lite 上的问题解决率为：**Editor with Linting（18.0%）> Editor without Linting（15.0%）> No Editor（10.3%）**。
 
