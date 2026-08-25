@@ -138,7 +138,7 @@ GPT-4 Turbo 在 SWE-bench Lite 上的问题解决率为：**Last 5 Observations�
 
 论文的主要 benchmark 是 **SWE-bench**：它包含来自 12 个 Python 代码仓库的 2,294 个真实 GitHub issue；**SWE-bench Lite** 是其中一个包含 300 个任务的子集。
 
-核心指标是 **pass@1**，论文也写作 **% Resolved**。每个任务只运行一次完整 Agent；生成的 patch 必须通过该任务的全部测试才算成功。例如，18% pass@1 表示每个任务只尝试一次时，平均每 100 个任务能解决 18 个。
+核心指标是 **pass@1**，论文也写作 **% Resolved**。每个任务只进行一次完整的 Agent 运行；生成的 patch 必须通过该任务的全部测试才算成功。例如，18% pass@1 表示每个任务只尝试一次时，平均每 100 个任务能解决 18 个。
 
 | 系统 | 模型 | 完整 SWE-bench | SWE-bench Lite |
 |:---|:---|---:|---:|
@@ -152,7 +152,7 @@ GPT-4 Turbo 在 SWE-bench Lite 上的问题解决率为：**Last 5 Observations�
 
 在使用同一个 GPT-4 Turbo 模型时，SWE-bench Lite 的问题解决率为：**SWE-agent（18.0%）> Shell-only Agent（11.0%）> One-shot RAG（2.67%）**。
 
-与 Shell-only Agent 相比，SWE-agent 的结构化 ACI 让解决率相对提升约 **64%**。底层 LLM 没有变化，仅仅是工具和接口设计得更适合 Agent，就能产生如此明显的差距。
+与 Shell-only Agent 相比，SWE-agent 的结构化 ACI 让解决率相对提升约 **64%**。底层 LLM 不变，仅仅是工具和接口设计得更适合 Agent，就能产生如此明显的效果提升。
 
 ## 我的一些想法
 
