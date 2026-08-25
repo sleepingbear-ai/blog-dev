@@ -16,18 +16,18 @@ summary = """
 
 ## TL;DR
 
-SWE-agent 是一篇关于 **Coding Agent** 的经典论文。它讨论的重点不是训练一个更强的模型，而是：**怎样为 LLM 提供合适的工具和运行环境，让它能真正完成软件工程任务。**
+SWE-agent 是一篇关于 **Coding Agent** 的经典论文。它讨论的重点不是训练一个更强的模型，而是：**怎样为 LLM 提供合适的工具和运行环境，让 LLM 成为一个能真正完成软件工程任务的 Agent。**
 
-论文把 LLM Agent 与计算机之间的交互层称为 **Agent-Computer Interface（ACI）**。SWE-agent 的 ACI 提供：
+论文把 LLM 与计算机之间的交互层称为 **Agent-Computer Interface（ACI）**。SWE-agent 的 ACI 提供：
 
-* 简单、专用的代码搜索、浏览和编辑命令；
-* 每次操作后简洁但信息充分的反馈；
-* 会拒绝语法错误修改的 linting guardrail；
-* 优先保留近期相关信息的 context management。
+* 简单、专用的代码搜索、浏览和编辑命令
+* 每次操作后简洁但信息充分的反馈
+* 会拒绝语法错误修改的 linting guardrail
+* 优先保留近期相关信息的 context management
 
-在使用同一个 GPT-4 Turbo 模型时，仅用原始 shell 的 Agent 在 SWE-bench Lite 上解决率为 **11.0%**，加入 SWE-agent 的 ACI 后达到 **18.0%**，底层模型权重完全没有变化。
+在使用同一个 GPT-4 Turbo 模型时，仅用原始 Linux shell 为工具的 Agent 在 SWE-bench Lite 上解决率为 **11.0%**，加入 SWE-agent 的 ACI 后达到 **18.0%**，底层 LLM 权重完全不变。
 
-核心启发是：**Agent 的能力不只取决于 LLM，也取决于围绕模型构建的软件环境。** 一个有效的 AI Agent，需要通过 evaluation 持续优化工具、context management 和 guardrails。
+核心启发是：**Agent 的能力不只取决于 LLM，也取决于围绕模型构建的软件环境。** 一个有效的 AI Agent，需要在 evaluation 的指导下，优化工具、context management 和 guardrails。
 
 ## 问题：Coding Agent 不只是一个 LLM
 
