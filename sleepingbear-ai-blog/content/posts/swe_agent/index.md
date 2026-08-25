@@ -158,7 +158,7 @@ GPT-4 Turbo 在 SWE-bench Lite 上的问题解决率为：**Last 5 Observations�
 
 ### Agent 设计原则
 
-SWE-agent 对 Coding Agent，乃至更广泛的 AI Agent 设计，都提供了几条重要启发：
+SWE-agent 对 Coding Agent，乃至更广泛的 AI Agent 设计，都提供了几条重要原则：
 
 * **Agent 不只是 LLM。** 模型只是系统中的一个组件；工具、observation、guardrails 和 context management 都会影响最终能力。
 
@@ -166,7 +166,7 @@ SWE-agent 对 Coding Agent，乃至更广泛的 AI Agent 设计，都提供了�
 
 * **Context management 应优先保留相关信息。** 最近的历史保留细节，过时的历史压缩；同时提供 demonstration，教 LLM 正确地使用工具。
 
-* **Guardrails 可以阻止错误扩散。** Linting 在修改进入代码库之前拒绝语法错误，避免一个小错误触发一连串具有误导性的后续失败。
+* **Guardrails 可以阻止错误扩散。** Linting 会拒绝引入语法错误的代码修改，避免一个小错误触发一连串具有误导性的后续失败。
 
 * **用 Evaluation 驱动设计。** Summarized Search、100 行 File Viewer 和 Last 5 Observations 都不是凭直觉决定的，而是通过 ablation experiment 比较出来的。
 
