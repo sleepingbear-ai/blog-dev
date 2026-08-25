@@ -1,7 +1,7 @@
 +++
 date = '2026-08-25T10:00:00-07:00'
 draft = false
-title = 'SWE-agent 解释和思考：如何有效设计AI Agent'
+title = 'SWE-agent 解释和思考：如何有效设计 Coding Agent'
 tags = ['ai', 'aiagents', 'codingagent', 'sweagent', 'swebench', 'aci', 'llm', 'aicoding', '人工智能', 'ai学习', 'ai编程', '大模型']
 summary = """
   *SWE-agent（Princeton University）是 Coding Agent 领域的经典论文。它提出 Agent-Computer Interface（ACI），解释了为什么工具设计、context management 和 guardrails 会直接影响 Agent 的能力，并在不改变底层 LLM 的情况下，把 SWE-bench Lite 的问题解决率从 11.0% 提升到 18.0%。*
@@ -22,7 +22,7 @@ SWE-agent 是一篇关于 **Coding Agent** 的经典论文。它讨论的重点�
 
 * 简单、专用的代码搜索、浏览和编辑命令
 * 每次操作后简洁但信息充分的反馈
-* 会拒绝语法错误修改的 linting guardrail
+* 会拒绝引入语法错误的修改
 * 优先保留近期相关信息的 context management
 
 在使用同一个 GPT-4 Turbo 模型时，仅用原始 Linux shell 为工具的 Agent 在 SWE-bench Lite 上解决率为 **11.0%**，加入 SWE-agent 的 ACI 后达到 **18.0%**，底层 LLM 权重完全不变。
@@ -175,7 +175,6 @@ SWE-agent 对 Coding Agent，乃至更广泛的 AI Agent 设计，都提供了�
 * SWE-agent 是围绕 2024 年的特定 LLM 优化的。更新、更强的模型可能需要不同的 action 粒度和 context policy。
 * AI Agent 技术发展很快。Skills、更成熟的 Agent harness 和 Multi-Agent System 可以让 Agent 完成更复杂的任务；论文发表于 2024 年，自然没有涵盖这些后来日益重要的方向。
 * 随着 LLM 能力增强，SWE-agent 中一些由固定规则完成的工作，现在也可能交给模型处理。例如，让 LLM 主动总结交互历史，并动态选择最相关的 context。
-* Evaluation 驱动的设计还可以与正在探索的 self-improving loop 技术结合，形成持续评估、迭代和改进 Agent 的研发闭环。
 
 ### 大方向
 
@@ -189,7 +188,7 @@ SWE-agent 最重要的观点是：**LLM 周围的 interface 本身就是 Agent �
 * 有限的 context 应该如何分配？
 * 怎样用 evaluation 判断一种界面设计是否真的更好？
 
-SWE-agent 之所以是 Coding Agent 领域的经典论文，正是因为它把“Interface 决定 Agent 能力”这个观点，变成了一套由实验数据驱动、具体且可复用的 Agent 设计原则。
+SWE-agent 之所以是 Coding Agent 领域的经典论文，正是因为它把“Interface 决定 Agent 能力”这个观点，变成了一套由实验数据驱动、具体且可复用的 Agent 设计原则。沿着这一思路，我认为 evaluation 驱动的设计还可以与正在探索的 self-improving loop 技术结合，形成持续评估、迭代和改进 Agent 的研发闭环。
 
 ## 参考文献
 
