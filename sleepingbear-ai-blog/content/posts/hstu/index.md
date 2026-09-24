@@ -12,7 +12,7 @@ summary = """
 
 论文：**[Actions Speak Louder than Words: Trillion-Parameter Sequential Transducers for Generative Recommendations](https://arxiv.org/abs/2402.17152)**（Zhai et al., Meta, ICML 2024）
 
-代码：**[facebookresearch/generative-recommenders](https://github.com/facebookresearch/generative-recommenders)**
+代码：**[meta-recsys/generative-recommenders](https://github.com/meta-recsys/generative-recommenders)**
 
 ---
 
@@ -20,14 +20,14 @@ summary = """
 
 传统工业推荐模型 DLRM 依赖大量人工构造的 categorical feature、counter、ratio 和复杂的 feature interaction module。模型虽然参数很多、数据很多，但继续增加计算量时，效果常常很快饱和。
 
-这篇论文提出 **Generative Recommender（GR）**：把 item、用户 action、时间和其他 categorical feature 合并成一条时间序列，再把 Retrieval 与 Ranking 都写成 sequence prediction。这里的“生成式”不是生成文字或视频，而是**对用户行为序列建模，并生成下一个 item 或 action 的预测**。
+这篇论文提出 **Generative Recommender（GR）**：把 item、用户 action 和其他 categorical feature 按时间合并成一条序列，再把 Retrieval 与 Ranking 都写成 sequence prediction。这里的“生成式”不是生成文字或视频，而是**对用户行为序列建模，并预测下一个 item 或 action**。
 
 整套系统有四个关键部分：
 
 1. **统一 Feature Space**：把异构 categorical feature sequentialize；让模型从原始历史中学习原本由 counter、ratio 表达的统计信息。
 2. **Generative Training**：按用户或 session 训练，一次 encoder forward 同时监督多个时间点，避免为每次 impression 重复计算相同历史，理论上减少一个 `O(N)` 因子的计算。
 3. **HSTU Encoder**：用不做 sequence-wise softmax 的 pointwise attention 保留兴趣强度，以 gating 代替复杂 feature interaction，并针对 jagged、超长推荐序列优化内存和 kernel。
-4. **M-FALCON Serving**：把大量候选 item micro-batch，复用用户历史的计算和 KV Cache，让更复杂的 target-aware 模型仍能低成本在线服务。
+4. **M-FALCON Serving**：把大量候选 item 分成 micro-batch，复用用户历史的计算和 KV cache，让更复杂的 target-aware 模型仍能低成本在线服务。
 
 结果很亮眼：最大模型达到 **1.5T 参数**；生产 Ranking A/B Test 的两个主要指标提升 **12.4% / 4.4%**；长度 8,192 时，HSTU 训练速度比基于 FlashAttention-2 的 Transformer 快 **5.3x-15.2x**。更重要的是，GR 的效果随训练 compute 在三个数量级上近似 power law 增长，而 DLRM 很快进入平台期。
 
@@ -35,21 +35,23 @@ summary = """
 
 这篇论文的 Generative Recommender 容易被误解成“用 LLM 生成推荐理由”或“直接生成内容”。两者都不是。
 
-它的生成对象是推荐系统里的两类 token：
+先看与两项核心任务直接相关的两类 token：
 
 * **Content / Item**：系统展示的图片、视频或商品。
 * **Action**：用户对 item 的反应，例如 click、skip、like、完成观看或 share。
 
-模型学习的是整个交错序列的联合分布：
+两者按时间交错排列：
 
 ```text
 item₀ → action₀ → item₁ → action₁ → ...
 ```
 
-对同一条序列选择不同的 prediction target，就得到两类核心任务：
+模型在这条序列上选择不同的 prediction target，就得到两类核心任务：
 
 * **Retrieval**：根据此前历史预测下一个发生正向互动的 item。
 * **Ranking**：把候选 item 接到历史后面，预测用户将对它采取什么 action。
+
+真实输入还会把语言、城市、关注的 creator 等较低频 categorical feature 按时间插入同一条序列。这里的“生成式”更准确地说，是在统一序列上定义不同的 sequential transduction 目标：Retrieval 预测 item，Ranking 预测 action；它并不要求同一个训练目标生成序列里的每一种 token。
 
 Ranking 之所以把 item 和 action 交错排列，是为了让候选 item 尽早与完整历史发生 target-aware interaction。模型不是先生成一个通用 user embedding，再在最后用一次 dot product 打分；候选 item 本身会参与对历史的 attention。
 
@@ -78,26 +80,26 @@ GR 首先把用户互动合成主时间线。对于人口属性、关注 creator
 
 传统 impression-level training 会在每次曝光后创建一个样本。假设一个用户有长度为 `N` 的历史，训练第 `i` 个目标时又要重新编码前 `i` 个 token，许多相同前缀被重复计算。
 
-GR 改为按用户请求或 session 产生训练样本：一次处理整条序列，并在多个位置计算 loss。Encoder 的成本被多个 target 共同分摊。论文推导中，总复杂度因此减少一个 `O(N)` 因子：
+GR 改为按用户请求或 session 产生训练样本：一次处理整条序列，并在多个位置计算 loss。Encoder 的成本被多个 target 共同分摊。令 `N` 为最长序列长度；在论文的 streaming sampling 推导中，如果长度为 `nᵢ` 的用户序列以 `sᵤ(nᵢ)=1/nᵢ` 的频率采样，总复杂度就减少一个 `O(N)` 因子：
 
 ```text
 Impression-level training: O(N³d + N²d²)
 Generative training:       O(N²d + Nd²)
 ```
 
-这一步很关键。HSTU 能扩大到 trillion-parameter，不只是因为某个 attention kernel 更快，而是因为**训练单位从一次 impression 变成了一整段用户历史**，先消除了系统中最大的一类重复计算。
+这一步很关键。基于 HSTU 的 GR 能扩展到万亿参数规模，不只是因为某个 attention kernel 更快，而是因为**训练单位从一次 impression 变成了一整段用户历史**，先消除了系统中最大的一类重复计算。
 
 ## HSTU：为推荐数据重新设计的 Attention Block
 
 HSTU 全称 **Hierarchical Sequential Transduction Unit**。它由重复堆叠的 residual block 构成，每层可以简化为三步：
 
 ```text
-1. Pointwise Projection:    X → U, V, Q, K
-2. Spatial Aggregation:     SiLU(QKᵀ + relative bias) · V
-3. Pointwise Transformation: Linear(LayerNorm(attention output) ⊙ U)
+1. Pointwise Projection:     U, V, Q, K = Split(SiLU(Linear(X)))
+2. Spatial Aggregation:      Z = SiLU(QKᵀ + relative bias) · V
+3. Pointwise Transformation: Y = Linear(LayerNorm(Z) ⊙ U)
 ```
 
-其中 relative attention bias 同时编码位置差和时间差；`⊙ U` 是 element-wise gating，用来完成 feature interaction。
+这里有两次 SiLU：第一次用于生成 `U/V/Q/K`，第二次逐点作用于 attention score，取代沿序列维度归一化的 softmax。Relative attention bias 同时编码位置差和时间差；`⊙ U` 是 element-wise gating，用来完成 feature interaction。
 
 ![论文 Figure 3：传统 DLRM 由 Embedding、Feature Interaction、MoE 和多个 MLP 组成；HSTU 用重复堆叠的统一模块完成相似工作。](fig3-dlrm-vs-hstu.svg)
 
@@ -109,7 +111,7 @@ HSTU 全称 **Hierarchical Sequential Transduction Unit**。它由重复堆叠�
 
 这样做主要有两个原因：
 
-* **保留兴趣强度**：用户相关历史出现 2 次还是 200 次，本身就是重要信号。Softmax 归一化更关注相对分配，容易弱化总量信息；pointwise aggregation 能让输出幅度随相关证据数量变化。
+* **保留兴趣强度**：用户相关历史出现 2 次还是 200 次，本身就是重要信号。Softmax 把 attention weight 归一化为总和为 1 的相对分配，容易弱化证据数量；pointwise aggregation 不施加这一约束，让相关历史的数量能够影响聚合结果。
 * **适应非平稳 vocabulary**：推荐内容持续创建和消失，item vocabulary 不断变化。论文的 synthetic streaming experiment 中，HSTU pointwise attention 的 HR@10 为 `0.0893`，换成 softmax 后是 `0.0617`。
 
 聚合后必须使用 LayerNorm 稳定训练。换句话说，HSTU 不是简单“删除 softmax”，而是用 **pointwise activation + aggregation + post-aggregation normalization** 替代它。
@@ -136,9 +138,9 @@ Ranking 的难点是，一次请求可能要给成千上万个候选 item 打分
 3. 修改 attention mask 和 relative bias，让同一批候选在一次 forward 中各自读取相同历史，但彼此不可见；
 4. 在多个 micro-batch，甚至多个 request 之间复用缓存。
 
-这让 target-aware attention 的主要历史计算不再按候选数重复。生产配置中，GR 虽然计算复杂度是 DLRM 的 **285 倍**，但给 1,024 / 16,384 个候选打分时，QPS 反而是 DLRM 的 **1.50x / 2.99x**。
+这让 target-aware attention 的主要历史计算不再按候选数重复。生产配置中，GR 的模型 FLOPs 虽然是 DLRM 的 **285 倍**，但给 1,024 / 16,384 个候选打分时，QPS 反而是 DLRM 的 **1.50x / 2.99x**。
 
-![论文 Figure 6：生产 Ranking 设置中，GR + M-FALCON 在模型复杂度高 285 倍的情况下，吞吐仍高于 DLRM。](fig6-inference-throughput.svg)
+![论文 Figure 6：生产 Ranking 设置中，GR + M-FALCON 在模型 FLOPs 高 285 倍的情况下，吞吐仍高于 DLRM。](fig6-inference-throughput.svg)
 
 *M-FALCON 把“更大的模型”转化为“更充分地复用同一份用户历史计算”。（[论文](https://arxiv.org/abs/2402.17152) Figure 6。）*
 
@@ -178,7 +180,7 @@ Ranking 的难点是，一次请求可能要给成千上万个候选 item 打分
 
 最大实验配置为 8,192 sequence length、1,024 embedding dimension 和 24 层 HSTU。Retrieval 的 HR@100 / HR@500 与 Ranking 的 NE 都呈现近似 power-law trend，而且 sequence length 比在语言模型中更重要——扩大模型宽度和深度时，也要同步给它更长的用户历史。
 
-不过，**1.5T HSTU 不能简单等同于 1.5T dense LLM**。推荐模型的大量参数来自十亿级 atomic ID embedding table；每次请求只访问其中很小一部分。这个数字说明的是超大动态 vocabulary 和系统规模，而不是每个 token 都经过 1.5T dense parameter 的计算。
+不过，**基于 HSTU、参数量达 1.5T 的 GR 不能简单等同于 1.5T dense LLM**。GR 使用十亿级 atomic ID vocabulary，因此总参数量中包含庞大的 embedding table，每次请求只访问其中很小一部分。论文也扩展了 non-embedding parameters，但 1.5T 这个数字仍然不能理解成每个 token 都经过 1.5T dense parameters 的计算。
 
 ## 我的一些想法
 
@@ -211,7 +213,7 @@ DLRM 的改进通常来自更多人工 feature 和更复杂的交叉模块；GR 
 ### 4. 论文也有明显局限
 
 * **工业结果难以独立复现**：关键结论来自未公开的 Meta 数据、硬件和 serving stack；线上指标经过匿名化，读者不知道 `+12.4%` 对应的具体产品目标。
-* **1.5T 参数容易被误读**：它主要反映 atomic embedding vocabulary 的规模，不能直接与 dense LLM 的参数量比较。
+* **1.5T 参数容易被误读**：论文同时扩展了 embedding 与 non-embedding parameters；但总参数量包含庞大的 atomic ID embedding table，不能直接与 dense LLM 的参数量比较。
 * **Scaling Law 是经验结果，不是永久保证**：论文只验证到当时能测试的 compute 范围；更大规模是否继续按同一斜率改善仍未知。
 * **Atomic ID 的泛化问题仍在**：新 item 不天然共享语义结构。TIGER、PLUM 等 Semantic ID 路线，正是在尝试改善这一点。
 * **更强的行为建模也会更强地学习既有偏差**：曝光机制、热门内容和短期 engagement 会形成 feedback loop。序列更长、模型更大并不会自动带来多样性、公平性或长期用户价值，这仍需要 objective 与 evaluation 的配合。
