@@ -8,7 +8,7 @@ summary = """
 """
 +++
 
-*Meta HSTU 把推荐系统中的 Retrieval和 Ranking 重构为 seq2seq 预测问题， 统一模型特征为一个用户序列，并用高效设计的HSTU Attention Block、Stochastic Length 和 M-FALCON 大幅训练与推理成本。最终，1.5 万亿参数的大推荐系统模型在A/B Test 中最高提升 12.4%，并呈现跨三个数量级的 Compute Scaling Law。*
+*Meta HSTU 把推荐系统中的 Retrieval和 Ranking 重构为用户序列预测问题， 统一模型特征为一个用户序列，并用高效设计的HSTU Attention Block、Stochastic Length 和 M-FALCON 大幅训练与推理成本。最终，1.5 万亿参数的大推荐系统模型在A/B Test 中最高提升 12.4%，并呈现跨三个数量级的 Compute Scaling Law。*
 
 论文：**[Actions Speak Louder than Words: Trillion-Parameter Sequential Transducers for Generative Recommendations](https://arxiv.org/abs/2402.17152)**（Zhai et al., Meta, ICML 2024）
 
@@ -18,18 +18,18 @@ summary = """
 
 ## TL;DR
 
-传统工业推荐模型 DLRM 依赖大量人工构造的 categorical feature、counter、ratio 和复杂的 feature interaction module。模型虽然参数很多、数据很多，但继续增加计算量时，效果常常很快饱和。
+传统工业推荐中的 **Deep Learning Recommendation Model（DLRM）** 依赖大量人工构造的 categorical, numerical features 和复杂的 feature interaction module。但scale up 模型和计算规模时，效果常常饱和。
 
-这篇论文提出 **Generative Recommender（GR）**：把 item、用户 action 和其他 categorical feature 按时间合并成一条序列，再把 Retrieval 与 Ranking 都写成 sequence prediction。这里的“生成式”不是生成文字或视频，而是**对用户行为序列建模，并预测下一个 item 或 action**。
+这篇论文提出 **Generative Recommender（GR）**：把 item、用户 action 和其他 categorical feature 按时间合并成一条序列，再把 Retrieval 与 Ranking 都重构成序列预测问题n。这里的“生成式”不是生成文字或视频，而是**对用户行为序列建模，并预测序列中下一个 item 或 action**。
 
 整套系统有四个关键部分：
 
 1. **统一 Feature Space**：把异构 categorical feature sequentialize；让模型从原始历史中学习原本由 counter、ratio 表达的统计信息。
 2. **Generative Training**：按用户或 session 训练，一次 encoder forward 同时监督多个时间点，避免为每次 impression 重复计算相同历史，理论上减少一个 `O(N)` 因子的计算。
-3. **HSTU Encoder**：用不做 sequence-wise softmax 的 pointwise attention 保留兴趣强度，以 gating 代替复杂 feature interaction，并针对 jagged、超长推荐序列优化内存和 kernel。
-4. **M-FALCON Serving**：把大量候选 item 分成 micro-batch，复用用户历史的计算和 KV cache，让更复杂的 target-aware 模型仍能低成本在线服务。
+3. **HSTU Encoder**：用不做 softmax 的 pointwise attention 保留兴趣强度，以 gating 代替复杂 feature interaction，并针对 jagged、超长推荐序列优化内存和 kernel。
+4. **M-FALCON Serving**：把大量候选 item 分成 micro-batch，复用用户历史的计算和 KV cache，让更复杂的 target-aware 模型能高效实现。
 
-结果很亮眼：最大模型达到 **1.5T 参数**；生产 Ranking A/B Test 的两个主要指标提升 **12.4% / 4.4%**；长度 8,192 时，HSTU 训练速度比基于 FlashAttention-2 的 Transformer 快 **5.3x-15.2x**。更重要的是，GR 的效果随训练 compute 在三个数量级上近似 power law 增长，而 DLRM 很快进入平台期。
+结果很亮眼：最大模型达到 **1.5T 参数**；生产系统 A/B Test 的两个主要指标提升 **12.4% / 4.4%**；用户序列长度 8,192 时，HSTU 训练速度比基于 FlashAttention-2 的 Transformer 快 **5.3x-15.2x**。更重要的是，GR 的效果随训练 compute 在三个数量级上近似 power law 增长，而 DLRM 很快进入平台期。
 
 ## 先澄清：“Generative”到底指什么？
 
