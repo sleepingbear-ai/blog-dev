@@ -1,14 +1,14 @@
 +++
 date = '2026-09-20T10:00:00-07:00'
 draft = false
-title = 'HSTU 解释和思考：把推荐系统变成可扩展的生成式模型'
+title = 'Meta HSTU 解释和思考：如何把推荐系统做大'
 tags = ['ai', '推荐系统', '生成式推荐', 'hstu', 'generativerecommender', 'dlrm', 'scalinglaw', 'meta', '人工智能', 'ai学习', '大模型']
 summary = """
-  *Meta 的 HSTU 论文不只是提出一个新的 Attention Block，而是把工业推荐中的 Retrieval 和 Ranking 都改写成 Sequential Transduction：统一异构特征、按用户序列做 Generative Training，并用 HSTU、Stochastic Length 和 M-FALCON 解决训练与推理成本。最终，1.5 万亿参数的 Generative Recommender 在生产 A/B Test 中最高提升 12.4%，并呈现跨三个数量级的 Compute Scaling Law。*
+  *Meta HSTU 把推荐系统中的 Retrieval和 Ranking 重构为用户序列预测问题， 统一模型特征为一个用户序列，并用高效设计的HSTU Attention Block、Stochastic Length 和 M-FALCON 大幅训练与推理成本。最终，1.5 万亿参数的大推荐系统模型在A/B Test 中最高提升 12.4%，并呈现跨三个数量级的 Compute Scaling Law。*
 """
 +++
 
-*Meta 的 HSTU 论文不只是提出一个新的 Attention Block，而是把工业推荐中的 Retrieval 和 Ranking 都改写成 Sequential Transduction：统一异构特征、按用户序列做 Generative Training，并用 HSTU、Stochastic Length 和 M-FALCON 解决训练与推理成本。最终，1.5 万亿参数的 Generative Recommender 在生产 A/B Test 中最高提升 12.4%，并呈现跨三个数量级的 Compute Scaling Law。*
+*Meta HSTU 把推荐系统中的 Retrieval和 Ranking 重构为 seq2seq 预测问题， 统一模型特征为一个用户序列，并用高效设计的HSTU Attention Block、Stochastic Length 和 M-FALCON 大幅训练与推理成本。最终，1.5 万亿参数的大推荐系统模型在A/B Test 中最高提升 12.4%，并呈现跨三个数量级的 Compute Scaling Law。*
 
 论文：**[Actions Speak Louder than Words: Trillion-Parameter Sequential Transducers for Generative Recommendations](https://arxiv.org/abs/2402.17152)**（Zhai et al., Meta, ICML 2024）
 
