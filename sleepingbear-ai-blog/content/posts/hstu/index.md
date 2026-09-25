@@ -143,7 +143,7 @@ HSTU 全称 **Hierarchical Sequential Transduction Unit**。它由重复堆叠�
 
 这些工程设计带来的结果是：在 8,192 sequence length 上，HSTU 训练比 FlashAttention-2 Transformer 快 `5.3x-15.2x`，inference 最多快 `5.6x`。
 
-## M-FALCON 算法：为多个候选I Item 并行做 Target-aware Ranking
+## M-FALCON 算法：为多个候选 Item 并行做 Target-aware Ranking
 
 推荐系统Ranking Model的难点是，一次请求可能要给几百个候选 Item 打分。如果每个候选都与用户历史单独做一次 cross-attention，运行成本很高。
 
