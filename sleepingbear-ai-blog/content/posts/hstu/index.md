@@ -212,7 +212,7 @@ HSTU 仍然使用庞大且不断变化的 atomic item ID vocabulary。这些 ID 
 
 这篇论文的重要性，在于它提出了一套实用、有效的方法，让基于序列的 Generative Recommender 真正部署到超大规模生产系统。更重要的是，实验为推荐系统中的 **Scaling Law** 提供了证据。
 
-这个结果很令人兴奋：它说明 Generative Recommendation 可能是一条有潜力的路线——通过扩大训练 compute 和模型规模，推荐质量也许还能获得非常大的提升。
+这个结果很令人兴奋：它说明 Generative Recommendation 可能是一条有潜力的路线——通过扩大训练 compute 和模型规模，推荐质量可能获得非常大的提升。
 
 ## 参考文献
 
