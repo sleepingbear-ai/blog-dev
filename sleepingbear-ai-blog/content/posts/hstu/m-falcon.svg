@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650" role="img" aria-labelledby="title desc">
+  <title id="title">M-FALCON batches ranking candidates around one shared history</title>
+  <desc id="desc">Naive target-aware scoring runs the user history once per candidate. M-FALCON appends a microbatch of candidates to one history, masks candidates from one another, caches the history keys and values, and scores the candidates in parallel.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#64748b"/></marker>
+    <style>.h{font:700 27px system-ui,sans-serif;fill:#0f172a}.label{font:650 18px system-ui,sans-serif;fill:#0f172a}.text{font:15px system-ui,sans-serif;fill:#334155}.tiny{font:13px system-ui,sans-serif;fill:#475569}.box{stroke-width:2;rx:13}.arr{stroke:#64748b;stroke-width:2.3;fill:none;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1200" height="650" rx="20" fill="#f8fafc"/>
+  <text x="300" y="45" class="h" text-anchor="middle">Naive target-aware scoring</text>
+  <text x="900" y="45" class="h" text-anchor="middle">M-FALCON</text>
+  <line x1="600" y1="24" x2="600" y2="620" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="8 8"/>
+  <g>
+    <rect x="55" y="90" width="270" height="52" class="box" fill="#dbeafe" stroke="#2563eb"/><text x="190" y="122" class="label" text-anchor="middle">shared user history H</text>
+    <rect x="350" y="90" width="110" height="52" class="box" fill="#fef3c7" stroke="#d97706"/><text x="405" y="122" class="label" text-anchor="middle">cand. 1</text>
+    <path d="M325 116 H342" class="arr"/>
+    <rect x="55" y="185" width="270" height="52" class="box" fill="#dbeafe" stroke="#2563eb"/><text x="190" y="217" class="label" text-anchor="middle">shared user history H</text>
+    <rect x="350" y="185" width="110" height="52" class="box" fill="#fef3c7" stroke="#d97706"/><text x="405" y="217" class="label" text-anchor="middle">cand. 2</text>
+    <path d="M325 211 H342" class="arr"/>
+    <rect x="55" y="280" width="270" height="52" class="box" fill="#dbeafe" stroke="#2563eb"/><text x="190" y="312" class="label" text-anchor="middle">shared user history H</text>
+    <rect x="350" y="280" width="110" height="52" class="box" fill="#fef3c7" stroke="#d97706"/><text x="405" y="312" class="label" text-anchor="middle">cand. 3</text>
+    <path d="M325 306 H342" class="arr"/>
+    <text x="190" y="373" class="label" text-anchor="middle">...</text>
+    <rect x="55" y="405" width="270" height="52" class="box" fill="#dbeafe" stroke="#2563eb"/><text x="190" y="437" class="label" text-anchor="middle">shared user history H</text>
+    <rect x="350" y="405" width="110" height="52" class="box" fill="#fef3c7" stroke="#d97706"/><text x="405" y="437" class="label" text-anchor="middle">cand. m</text>
+    <path d="M325 431 H342" class="arr"/>
+    <path d="M470 116 C530 116 530 430 530 480" class="arr"/><path d="M470 211 C515 211 515 440 530 480" class="arr"/><path d="M470 306 C500 306 500 450 530 480" class="arr"/><path d="M470 431 C500 431 500 470 530 480" class="arr"/>
+    <rect x="393" y="500" width="165" height="64" class="box" fill="#fee2e2" stroke="#dc2626"/><text x="475" y="526" class="label" text-anchor="middle">m model passes</text><text x="475" y="550" class="text" text-anchor="middle">history repeated</text>
+  </g>
+
+  <rect x="650" y="88" width="500" height="72" class="box" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="900" y="119" class="label" text-anchor="middle">shared user history H</text>
+  <text x="900" y="144" class="text" text-anchor="middle">K(H), V(H) computed once and cached</text>
+  <path d="M900 160 V196" class="arr"/>
+  <rect x="650" y="206" width="500" height="100" class="box" fill="#fef3c7" stroke="#d97706"/>
+  <text x="900" y="238" class="label" text-anchor="middle">one candidate microbatch</text>
+  <g class="text" text-anchor="middle">
+    <rect x="681" y="255" width="90" height="35" rx="8" fill="#fde68a"/><text x="726" y="278">cand. 1</text>
+    <rect x="781" y="255" width="90" height="35" rx="8" fill="#fde68a"/><text x="826" y="278">cand. 2</text>
+    <rect x="881" y="255" width="90" height="35" rx="8" fill="#fde68a"/><text x="926" y="278">cand. 3</text>
+    <rect x="981" y="255" width="68" height="35" rx="8" fill="#fde68a"/><text x="1015" y="278">...</text>
+    <rect x="1059" y="255" width="68" height="35" rx="8" fill="#fde68a"/><text x="1093" y="278">b_m</text>
+  </g>
+  <path d="M900 306 V342" class="arr"/>
+  <rect x="690" y="352" width="420" height="106" class="box" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="900" y="384" class="label" text-anchor="middle">one masked HSTU forward pass</text>
+  <text x="900" y="412" class="text" text-anchor="middle">each candidate attends to H</text>
+  <text x="900" y="438" class="text" text-anchor="middle">candidates cannot attend to one another</text>
+  <path d="M900 458 V494" class="arr"/>
+  <rect x="720" y="504" width="360" height="70" class="box" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="900" y="533" class="label" text-anchor="middle">b_m independent action scores</text>
+  <text x="900" y="558" class="text" text-anchor="middle">repeat only for remaining microbatches</text>
+  <text x="900" y="610" class="label" text-anchor="middle">Same predictions; shared history computation</text>
+</svg>

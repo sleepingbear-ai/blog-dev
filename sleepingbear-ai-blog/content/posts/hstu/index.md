@@ -143,26 +143,23 @@ HSTU 全称 **Hierarchical Sequential Transduction Unit**。它由重复堆叠�
 
 这些工程设计带来的结果是：在 8,192 sequence length 上，HSTU 训练比 FlashAttention-2 Transformer 快 `5.3x-15.2x`，inference 最多快 `5.6x`。
 
-## M-FALCON 算法：为多个候选 Item 并行做 Target-aware Ranking
+## M-FALCON：用一份用户历史为多个候选打分
 
-推荐系统Ranking Model的难点是，一次请求可能要给几百个候选 Item 打分。如果每个候选都与用户历史单独做一次 cross-attention，运行成本很高。
+假设 Ranking 阶段有 `m` 个候选，所有候选共享一段长度为 `n` 的用户历史。朴素的 target-aware Ranking 会为每个候选分别运行一次推理，重复计算同一段用户历史。
 
-论文提出 **M-FALCON（Microbatched-Fast Attention Leveraging Cacheable OperatioNs）** 算法：
+**M-FALCON（Microbatched-Fast Attention Leveraging Cacheable OperatioNs）** 把一组 micro-batch 候选 append 到同一条用户历史序列之后，再修改 attention mask 和 relative position/time bias，让每个候选都能读取用户历史，但不能读取其他候选。这样，一次 forward 就能为整个 micro-batch 打分，并且结果与逐个候选独立打分相同。
 
-1. 缓存与候选无关的用户历史 KV；
-2. 把候选分成 micro-batch；
-3. 修改 attention mask 和 relative bias，让同一批候选在一次 forward 中各自读取相同历史，但彼此不可见；
-4. 在多个 micro-batch，甚至多个 request 之间复用缓存。
+![朴素的 target-aware Ranking 为每个候选重复计算相同的用户历史；M-FALCON 把一组彼此 masked 的候选 append 到共享历史之后，复用历史 KV，并行产生相互独立的分数。](m-falcon.svg)
 
-这让 target-aware attention 的主要历史计算不再按候选数重复。生产配置中，GR 的模型 FLOPs 虽然是 DLRM 的 **285 倍**，但给 1,024 / 16,384 个候选打分时，QPS 反而是 DLRM 的 **1.50x / 2.99x**。
+*M-FALCON 改变的是执行方式，而不是模型语义：每个候选都能看到用户历史，但候选之间互不可见。（示意图基于[论文](https://arxiv.org/abs/2402.17152) Figure 11 和 Algorithm 1。）*
 
-![论文 Figure 6：生产 Ranking 设置中，GR + M-FALCON 在模型 FLOPs 高 285 倍的情况下，吞吐仍高于 DLRM。](fig6-inference-throughput.svg)
+第一个 micro-batch 会生成用户历史的 Key/Value cache；后续 micro-batch 通过 KV Caching 复用它，只计算候选侧的 projection 和 attention。根据论文的分析，batching 把重复的 attention 成本从 `O(mn²d)` 降到 `O((n + bₘ)²d)`；当 micro-batch size `bₘ` 相对历史长度较小时，后者近似为 `O(n²d)`。
 
-*M-FALCON 把“更大的模型”转化为“更充分地复用同一份用户历史计算”。（[论文](https://arxiv.org/abs/2402.17152) Figure 6。）*
+这个优化并不依赖 HSTU，也适用于其他使用 causal self-attention 做 target-aware scoring 的模型。
 
 ## 实验结果
 
-论文先在 MovieLens 和 Amazon Reviews 上与 SASRec 比较，再在 Meta 的 one-pass streaming dataset 上做离线实验和线上 A/B Test。Public dataset 上，HSTU 相比 baseline 的 NDCG 最多提升 **65.8%**；但真正重要的是工业结果。
+论文先在 MovieLens 和 Amazon Reviews 上与 SASRec 比较，HSTU 相比 baseline 的 NDCG 最多提升达到 **65.8%**; 再在 Meta 的 dataset 上做离线实验和线上 A/B Test:
 
 ### Retrieval
 
@@ -179,12 +176,9 @@ HSTU 全称 **Hierarchical Sequential Transduction Unit**。它由重复堆叠�
 | 模型 | E-Task NE | C-Task NE | 线上 E-Task | 线上 C-Task |
 |:---|---:|---:|---:|---:|
 | DLRM | 0.4982 | 0.7842 | 0% | 0% |
-| GR（interactions only） | 0.4851 | 0.7903 | - | - |
 | **完整 GR** | **0.4845** | **0.7645** | **+12.4%** | **+4.4%** |
 
 *数据来自[论文](https://arxiv.org/abs/2402.17152) Table 7。Normalized Entropy（NE）越低越好。*
-
-`interactions only` 只保留用户互动 item，接近传统 sequential recommender；它在 C-Task 上明显弱于完整 GR。这说明“把推荐变成序列”还不够，低频 contextual categorical feature 也必须进入统一时间线。
 
 ## 最重要的结果：推荐系统也出现了 Scaling Law
 
@@ -194,51 +188,31 @@ HSTU 全称 **Hierarchical Sequential Transduction Unit**。它由重复堆叠�
 
 *GR 的 Ranking 效果随 compute 在三个数量级上持续改善。（[论文](https://arxiv.org/abs/2402.17152) Figure 7 bottom。）*
 
-最大实验配置为 8,192 sequence length、1,024 embedding dimension 和 24 层 HSTU。Retrieval 的 HR@100 / HR@500 与 Ranking 的 NE 都呈现近似 power-law trend，而且 sequence length 比在语言模型中更重要——扩大模型宽度和深度时，也要同步给它更长的用户历史。
-
-不过，**基于 HSTU、参数量达 1.5T 的 GR 不能简单等同于 1.5T dense LLM**。GR 使用十亿级 atomic ID vocabulary，因此总参数量中包含庞大的 embedding table，每次请求只访问其中很小一部分。论文也扩展了 non-embedding parameters，但 1.5T 这个数字仍然不能理解成每个 token 都经过 1.5T dense parameters 的计算。
+最大实验配置为 8,192 sequence length、1,024 embedding dimension 和 24 层 HSTU。Retrieval 的 HR@100 / HR@500 与 Ranking 的 NE 都呈现近似 power-law trend.
 
 ## 我的一些想法
 
-### 1. 真正的创新是四层共同设计
+### 从 Meta HSTU 学到什么
 
-只看 HSTU attention equation，会低估这篇论文。它的完整逻辑是：
+Meta HSTU 把多项设计组合起来，才让基于序列的推荐模型能在工业规模下训练和部署。这些方法也可能适用于其他 Generative Recommender：
 
-```text
-统一 Feature Space
-        ↓
-按用户序列做 Generative Training
-        ↓
-用 HSTU + Stochastic Length 扩大训练
-        ↓
-用 M-FALCON 把复杂模型部署到线上
-```
+* **把异构 feature 统一成一条序列**
+* **把 Retrieval 和 Ranking 重构为 Seq2Seq 模型**
+* **使用 Stochastic Length 降低长序列的训练成本**
+* **设计更高效的 Attention Layer，例如 HSTU**
+* **使用 M-FALCON 并行计算一批候选 item 的 target-aware attention**
 
-Feature、objective、model architecture 和 serving algorithm 缺一不可。没有 generative training，重复前缀计算会吞掉训练预算；没有 M-FALCON，target-aware ranking 无法处理大量候选；没有统一序列，再大的模型仍被旧 feature pipeline 限制。
+### Open Questions
 
-### 2. 从 Feature Engineering 转向 Compute Scaling
+论文解决了大规模推荐中的 compute 和 memory bottleneck，但仍然使用庞大且不断变化的 atomic item ID vocabulary。这些 ID 需要巨大的 embedding table，也需要足够多的用户互动数据才能学到有效表示；对于新 item，这个问题尤其明显。
 
-DLRM 的改进通常来自更多人工 feature 和更复杂的交叉模块；GR 希望把它们压缩成统一的原始事件流，让模型通过规模学习统计量与交互关系。
+许多后来的 Generative Recommender，例如 [TIGER](../tiger-generative-retrieval/) 和 [PLUM](../plum/)，改用 **Semantic ID**：先从 item content embedding 得到一小段离散 code，再用这些 code 表示 item。更小的 token vocabulary 可能降低 embedding memory 压力，并改善 cold start。一个值得探索的方向，是把 HSTU 的长用户历史建模能力与 Semantic ID 结合起来，构建更强、也更容易扩展的推荐系统。
 
-这与 NLP 从 feature engineering 转向预训练模型很相似。但推荐领域有自己的条件：vocabulary 更大、更动态，训练数据持续 streaming，而且用户历史长度和 action intensity 都是重要信号。因此，推荐系统需要的未必是标准 Transformer，而是 HSTU 这种针对新 modality 修改过的架构。
+### 大方向
 
-### 3. “Actions Speak Louder than Words”有数据支持
+这篇论文的重要性，在于它提出了一套实用、有效的方法，让基于序列的 Generative Recommender 真正部署到超大规模生产系统。更重要的是，实验为推荐系统中的 **Scaling Law** 提供了证据。
 
-论文中 content-only GR 的 HR@100 只有 `11.6%`，DLRM 是 `29.0%`，使用用户互动历史的完整 GR 达到 `36.9%`。至少在大规模推荐中，只理解内容语义远远不够；高基数、按时间排列的真实 action 才是最有信息量的监督。
-
-### 4. 论文也有明显局限
-
-* **工业结果难以独立复现**：关键结论来自未公开的 Meta 数据、硬件和 serving stack；线上指标经过匿名化，读者不知道 `+12.4%` 对应的具体产品目标。
-* **1.5T 参数容易被误读**：论文同时扩展了 embedding 与 non-embedding parameters；但总参数量包含庞大的 atomic ID embedding table，不能直接与 dense LLM 的参数量比较。
-* **Scaling Law 是经验结果，不是永久保证**：论文只验证到当时能测试的 compute 范围；更大规模是否继续按同一斜率改善仍未知。
-* **Atomic ID 的泛化问题仍在**：新 item 不天然共享语义结构。TIGER、PLUM 等 Semantic ID 路线，正是在尝试改善这一点。
-* **更强的行为建模也会更强地学习既有偏差**：曝光机制、热门内容和短期 engagement 会形成 feedback loop。序列更长、模型更大并不会自动带来多样性、公平性或长期用户价值，这仍需要 objective 与 evaluation 的配合。
-
-## 大方向
-
-HSTU 论文最重要的结论不是“推荐系统也应该使用 Transformer”，而是：**把用户 action 当成一种独立的生成式 modality，并围绕它重新设计整个系统，推荐模型才可能真正从 compute scaling 中获益。**
-
-它为后来的生成式推荐提供了另一条关键路线。Semantic ID 工作解决“怎样用 token 表示 item”；HSTU 则集中回答“怎样把工业推荐的完整问题转成可扩展的 sequence modeling”。两条路线最终很可能汇合：用有语义结构的 item token 表示内容，再用 HSTU 这类为长行为序列设计的模型统一 Retrieval、Ranking 和长期用户建模。
+这个结果很令人兴奋：它说明 Generative Recommendation 可能是一条有潜力的路线——通过扩大训练 compute 和模型规模，推荐质量也许还能获得非常大的提升。
 
 ## 参考文献
 
