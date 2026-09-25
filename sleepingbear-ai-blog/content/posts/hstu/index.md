@@ -4,11 +4,11 @@ draft = false
 title = 'Meta HSTU 解释和思考：如何把推荐系统做大'
 tags = ['ai', '推荐系统', '生成式推荐', 'hstu', 'generativerecommender', 'dlrm', 'scalinglaw', 'meta', '人工智能', 'ai学习', '大模型']
 summary = """
-  *Meta HSTU 把推荐系统中的 Retrieval和 Ranking 重构为用户序列预测问题， 统一模型特征为一个用户序列，并用高效设计的HSTU Attention Block、Stochastic Length 和 M-FALCON 大幅训练与推理成本。最终，1.5 万亿参数的大推荐系统模型在A/B Test 中最高提升 12.4%，并呈现跨三个数量级的 Compute Scaling Law。*
+  *Meta HSTU 把推荐系统中的 Retrieval和 Ranking 重构为用户序列预测问题， 统一模型特征为一个用户序列，并用高效设计的HSTU Attention Block、Stochastic Length 和 M-FALCON 大幅降低训练与推理成本。最终，1.5 万亿参数的大推荐系统模型在A/B Test 中最高提升 12.4%，并呈现跨三个数量级的 Compute Scaling Law。*
 """
 +++
 
-*Meta HSTU 把推荐系统中的 Retrieval和 Ranking 重构为用户序列预测问题， 统一模型特征为一个用户序列，并用高效设计的HSTU Attention Block、Stochastic Length 和 M-FALCON 大幅训练与推理成本。最终，1.5 万亿参数的大推荐系统模型在A/B Test 中最高提升 12.4%，并呈现跨三个数量级的 Compute Scaling Law。*
+*Meta HSTU 把推荐系统中的 Retrieval和 Ranking 重构为用户序列预测问题， 统一模型特征为一个用户序列，并用高效设计的HSTU Attention Block、Stochastic Length 和 M-FALCON 大幅降低训练与推理成本。最终，1.5 万亿参数的大推荐系统模型在A/B Test 中最高提升 12.4%，并呈现跨三个数量级的 Compute Scaling Law。*
 
 论文：**[Actions Speak Louder than Words: Trillion-Parameter Sequential Transducers for Generative Recommendations](https://arxiv.org/abs/2402.17152)**（Zhai et al., Meta, ICML 2024）
 
@@ -153,7 +153,7 @@ HSTU 全称 **Hierarchical Sequential Transduction Unit**。它由重复堆叠�
 
 *M-FALCON 改变的是执行方式，而不是模型语义：每个候选都能看到用户历史，但候选之间互不可见。（示意图基于[论文](https://arxiv.org/abs/2402.17152) Figure 11 和 Algorithm 1。）*
 
-第一个 micro-batch 会生成用户历史的 Key/Value cache；后续 micro-batch 通过 KV Caching 复用它，只计算候选侧的 projection 和 attention。根据论文的分析，batching 把重复的 attention 成本从 `O(mn²d)` 降到 `O((n + bₘ)²d)`；当 micro-batch size `bₘ` 相对历史长度较小时，后者近似为 `O(n²d)`。
+第一个 micro-batch 会生成用户历史的 Key/Value cache；后续 micro-batch 通过 KV Caching 复用它，只计算候选侧的 projection 和 attention。对于一个大小为 `bₘ` 的 micro-batch，batching 把逐个候选计算 attention 的成本从 `O(bₘn²d)` 降到 `O((n + bₘ)²d)`；当 `bₘ` 相对历史长度 `n` 较小时，后者近似为 `O(n²d)`。全部 `m` 个候选被分成 `⌈m/bₘ⌉` 个 micro-batch；建立历史 cache 后，每个后续 forward 的成本进一步降为 `O(bₘd² + bₘnd)`。
 
 这个优化并不依赖 HSTU，也适用于其他使用 causal self-attention 做 target-aware scoring 的模型。
 
@@ -204,9 +204,9 @@ Meta HSTU 把多项设计组合起来，才让基于序列的推荐模型能在�
 
 ### Open Questions
 
-论文解决了大规模推荐中的 compute 和 memory bottleneck，但仍然使用庞大且不断变化的 atomic item ID vocabulary。这些 ID 需要巨大的 embedding table，也需要足够多的用户互动数据才能学到有效表示；对于新 item，这个问题尤其明显。
+HSTU 仍然使用庞大且不断变化的 atomic item ID vocabulary。这些 ID 需要巨大的 embedding table，也需要足够多的用户互动数据才能学到有效表示；对于新 item，这个问题尤其明显。
 
-许多后来的 Generative Recommender，例如 [TIGER](../tiger-generative-retrieval/) 和 [PLUM](../plum/)，改用 **Semantic ID**：先从 item content embedding 得到一小段离散 code，再用这些 code 表示 item。更小的 token vocabulary 可能降低 embedding memory 压力，并改善 cold start。一个值得探索的方向，是把 HSTU 的长用户历史建模能力与 Semantic ID 结合起来，构建更强、也更容易扩展的推荐系统。
+许多后来的 Generative Recommender，例如 [TIGER](../tiger-generative-retrieval/)、[OneRec](../onerec/) 和 [PLUM](../plum/)，改用 **Semantic ID**：先从 item content embedding 得到一小段离散 code，再用这些 code 表示 item。更小的 Semantic ID token vocabulary 能降低 embedding memory 压力，并改善 cold start。一个值得探索的方向，是把 HSTU 的长用户历史建模能力与 Semantic ID 结合起来，构建更强、也更容易扩展的推荐系统。
 
 ### 大方向
 
@@ -219,7 +219,8 @@ Meta HSTU 把多项设计组合起来，才让基于序列的推荐模型能在�
 1. Zhai et al. **[Actions Speak Louder than Words: Trillion-Parameter Sequential Transducers for Generative Recommendations](https://arxiv.org/abs/2402.17152)**. ICML 2024。
 2. Kang & McAuley. **[Self-Attentive Sequential Recommendation (SASRec)](https://arxiv.org/abs/1808.09781)**. ICDM 2018。
 3. Rajput et al. **[Recommender Systems with Generative Retrieval (TIGER)](https://arxiv.org/abs/2305.05065)**. NeurIPS 2023。— [我的解读](../tiger-generative-retrieval/)
-4. He et al. **[PLUM: Adapting Pre-trained Language Models for Industrial-scale Generative Recommendations](https://arxiv.org/abs/2510.07784)**. 2025。— [我的解读](../plum/)
+4. Deng et al. **[OneRec: Unifying Retrieve and Rank with Generative Recommender and Preference Alignment](https://arxiv.org/abs/2502.18965)**. 2025。— [我的解读](../onerec/)
+5. He et al. **[PLUM: Adapting Pre-trained Language Models for Industrial-scale Generative Recommendations](https://arxiv.org/abs/2510.07784)**. 2025。— [我的解读](../plum/)
 
 ---
 
