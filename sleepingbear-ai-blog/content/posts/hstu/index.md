@@ -109,30 +109,17 @@ GR 不再把它们作为彼此分离的 feature fields，而是保留原始 cate
 
 这个方法减少 feature engineering，但依靠更长的用户序列和更多 compute。
 
-## Generative Training：一次计算，多处监督
-
-传统 impression-level training 会在每次曝光后创建一个样本。假设一个用户有长度为 `N` 的历史，训练第 `i` 个目标时又要重新编码前 `i` 个 token，许多相同前缀被重复计算。
-
-GR 改为按用户请求或 session 产生训练样本：一次处理整条序列，并在多个位置计算 loss。Encoder 的成本被多个 target 共同分摊。令 `N` 为最长序列长度；在论文的 streaming sampling 推导中，如果长度为 `nᵢ` 的用户序列以 `sᵤ(nᵢ)=1/nᵢ` 的频率采样，总复杂度就减少一个 `O(N)` 因子：
-
-```text
-Impression-level training: O(N³d + N²d²)
-Generative training:       O(N²d + Nd²)
-```
-
-这一步很关键。基于 HSTU 的 GR 能扩展到万亿参数规模，不只是因为某个 attention kernel 更快，而是因为**训练单位从一次 impression 变成了一整段用户历史**，先消除了系统中最大的一类重复计算。
-
-## HSTU：为推荐数据重新设计的 Attention Block
+## HSTU：为推荐系统重新设计的 Attention Block
 
 HSTU 全称 **Hierarchical Sequential Transduction Unit**。它由重复堆叠的 residual block 构成，每层可以简化为三步：
 
 ```text
-1. Pointwise Projection:     U, V, Q, K = Split(SiLU(Linear(X)))
-2. Spatial Aggregation:      Z = SiLU(QKᵀ + relative bias) · V
-3. Pointwise Transformation: Y = Linear(LayerNorm(Z) ⊙ U)
+1. U, V, Q, K = Split(SiLU(Linear(X)))
+2. Z = SiLU(QKᵀ + relative bias) · V
+3. Y = Linear(LayerNorm(Z) ⊙ U)
 ```
 
-这里有两次 SiLU：第一次用于生成 `U/V/Q/K`，第二次逐点作用于 attention score，取代沿序列维度归一化的 softmax。Relative attention bias 同时编码位置差和时间差；`⊙ U` 是 element-wise gating，用来完成 feature interaction。
+这里有两次 SiLU：第一次用于生成 `U/V/Q/K`，第二次逐点作用于 attention score，取代沿序列维度的 softmax。Relative attention bias 同时编码位置差和时间差；`⊙ U` 是 element-wise gating，用来完成 feature interaction。
 
 ![论文 Figure 3：传统 DLRM 由 Embedding、Feature Interaction、MoE 和多个 MLP 组成；HSTU 用重复堆叠的统一模块完成相似工作。](fig3-dlrm-vs-hstu.svg)
 
@@ -140,31 +127,27 @@ HSTU 全称 **Hierarchical Sequential Transduction Unit**。它由重复堆叠�
 
 ### 为什么不用普通 Softmax Attention？
 
-普通 Transformer 会沿 sequence dimension 对 attention score 做 softmax，使每个 query 对历史的权重之和固定为 1。HSTU 改用逐点的 SiLU 激活，然后直接聚合 value。
+普通 Transformer 会沿 sequence dimension 对 attention score 做 softmax，使每个 query 对历史的权重之和固定为 1。HSTU 没有用Softmax, 有两个原因：
 
-这样做主要有两个原因：
-
-* **保留兴趣强度**：用户相关历史出现 2 次还是 200 次，本身就是重要信号。Softmax 把 attention weight 归一化为总和为 1 的相对分配，容易弱化证据数量；pointwise aggregation 不施加这一约束，让相关历史的数量能够影响聚合结果。
-* **适应非平稳 vocabulary**：推荐内容持续创建和消失，item vocabulary 不断变化。论文的 synthetic streaming experiment 中，HSTU pointwise attention 的 HR@10 为 `0.0893`，换成 softmax 后是 `0.0617`。
+* **保留兴趣强度**：用户相关历史出现 2 次还是 10 次，本身就是重要信号。Softmax 把 attention weight 归一化为总和为 1 的相对分配，容易弱化证据数量.
+* **适应变化的 vocabulary**：推荐内容持续创建和消失，item vocabulary 不断变化。论文的 synthetic streaming experiment 中，HSTU 的 HR@10 为 `0.0893`，换成 softmax 后是 `0.0617`。
 
 聚合后必须使用 LayerNorm 稳定训练。换句话说，HSTU 不是简单“删除 softmax”，而是用 **pointwise activation + aggregation + post-aggregation normalization** 替代它。
 
-### 为什么它更省？
-
-论文利用了推荐数据与语言数据不同的几个特点：
+### 为什么HSTU更高效？
 
 * **Jagged Sequence**：用户历史长度高度不均匀。HSTU 使用 ragged attention kernel，只计算真实 token，不为空白 padding 付费，带来 `2x-5x` throughput gain。
-* **Stochastic Length（SL）**：长历史里行为具有多时间尺度的重复性。训练时，大部分长序列只随机保留一个 subsequence，偶尔仍使用完整历史。`α=1.6` 时，长度 4,096 的序列大多数时候缩短为 776；在 `64%-84%` sparsity 下，主要任务的 Normalized Entropy 退化不超过 `0.002`。
-* **更少 Activation**：HSTU 把 attention 外的 linear layer 从 6 个减少到 2 个，并大量做 operator fusion。论文估算每层 activation state 从 Transformer 的 `33d` 降到 `14d`，同样内存可堆叠超过 2 倍深度。
-* **大 Vocabulary 的内存优化**：10B vocabulary、512 维 embedding 加 fp32 Adam state 理论上需要约 60TB。论文用 row-wise AdamW，并把 optimizer state 放到 DRAM，把每个 embedding float 的 HBM 占用从 12 bytes 降到 2 bytes。
+* **Stochastic Length（SL）**：训练时，大部分长序列只随机保留一个 subsequence，偶尔仍使用完整历史。`α=1.6` 时，长度 4,096 的序列大多数时候缩短为 776；在 `64%-84%` sparsity 下，主要任务的 Normalized Entropy 退化不超过 `0.002`。
+* **更少 Activation Memory**：HSTU 把 attention 外的 linear layer 从 6 个减少到 2 个，并大量做 operator fusion。论文估算每层 activation state 从 Transformer 的 `33d` 降到 `14d`，同样内存空间可堆叠超过 2 倍深度的Layer。
+* **大 Vocabulary 的内存优化**：10B vocabulary、512 维 embedding 加 fp32 Adam Optimizer state 理论上需要约 60TB。论文用 row-wise AdamW，并把 optimizer state 放到 DRAM，把每个 embedding float 的 HBM 占用从 12 bytes 降到 2 bytes。
 
-这些工程设计共同带来的结果是：在 8,192 sequence length 上，HSTU 训练比 FlashAttention-2 Transformer 快 `5.3x-15.2x`，inference 最多快 `5.6x`。
+这些工程设计带来的结果是：在 8,192 sequence length 上，HSTU 训练比 FlashAttention-2 Transformer 快 `5.3x-15.2x`，inference 最多快 `5.6x`。
 
-## M-FALCON：如何为上万个候选做 Target-aware Ranking？
+## M-FALCON 算法：为多个候选I Item 并行做 Target-aware Ranking
 
-Ranking 的难点是，一次请求可能要给成千上万个候选 item 打分。如果每个候选都与用户历史单独做一次 cross-attention，再大的离线模型也无法上线。
+推荐系统Ranking Model的难点是，一次请求可能要给几百个候选 Item 打分。如果每个候选都与用户历史单独做一次 cross-attention，运行成本很高。
 
-论文提出 **M-FALCON（Microbatched-Fast Attention Leveraging Cacheable OperatioNs）**：
+论文提出 **M-FALCON（Microbatched-Fast Attention Leveraging Cacheable OperatioNs）** 算法：
 
 1. 缓存与候选无关的用户历史 KV；
 2. 把候选分成 micro-batch；
