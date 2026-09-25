@@ -137,7 +137,7 @@ HSTU 全称 **Hierarchical Sequential Transduction Unit**。它由重复堆叠�
 ### 为什么HSTU更高效？
 
 * **Jagged Sequence**：用户历史长度高度不均匀。HSTU 使用 ragged attention kernel，只计算真实 token，不为空白 padding 付费，带来 `2x-5x` throughput gain。
-* **Stochastic Length（SL）**：训练时，大部分长序列只随机保留一个 subsequence，偶尔仍使用完整历史。`α=1.6` 时，长度 4,096 的序列大多数时候缩短为 776；在 `64%-84%` sparsity 下，主要任务的 Normalized Entropy 退化不超过 `0.002`。
+* **Stochastic Length（SL）**：训练时，大部分长序列只随机保留一个 subsequence，偶尔仍使用完整历史。实验中， `α=1.6` 时，长度 4,096 的序列大多数时候缩短为 776， 但对模型效果影响甚微。
 * **更少 Activation Memory**：HSTU 把 attention 外的 linear layer 从 6 个减少到 2 个，并大量做 operator fusion。论文估算每层 activation state 从 Transformer 的 `33d` 降到 `14d`，同样内存空间可堆叠超过 2 倍深度的Layer。
 * **大 Vocabulary 的内存优化**：10B vocabulary、512 维 embedding 加 fp32 Adam Optimizer state 理论上需要约 60TB。论文用 row-wise AdamW，并把 optimizer state 放到 DRAM，把每个 embedding float 的 HBM 占用从 12 bytes 降到 2 bytes。
 
@@ -153,7 +153,7 @@ HSTU 全称 **Hierarchical Sequential Transduction Unit**。它由重复堆叠�
 
 *M-FALCON 改变的是执行方式，而不是模型语义：每个候选都能看到用户历史，但候选之间互不可见。（示意图基于[论文](https://arxiv.org/abs/2402.17152) Figure 11 和 Algorithm 1。）*
 
-第一个 micro-batch 会生成用户历史的 Key/Value cache；后续 micro-batch 通过 KV Caching 复用它，只计算候选侧的 projection 和 attention。对于一个大小为 `bₘ` 的 micro-batch，batching 把逐个候选计算 attention 的成本从 `O(bₘn²d)` 降到 `O((n + bₘ)²d)`；当 `bₘ` 相对历史长度 `n` 较小时，后者近似为 `O(n²d)`。全部 `m` 个候选被分成 `⌈m/bₘ⌉` 个 micro-batch；建立历史 cache 后，每个后续 forward 的成本进一步降为 `O(bₘd² + bₘnd)`。
+第一个 micro-batch 会生成用户历史的 Key/Value cache；后续 micro-batch 通过 KV Caching 复用它，只计算候选侧的 projection 和 attention。对于一个大小为 `bₘ` 的 micro-batch，batching 把逐个候选计算 attention 的成本从 `O(bₘn²d)` 降到 `O((n + bₘ)²d)`；当 `bₘ` 相对历史长度 `n` 较小时，后者近似为 `O(n²d)`。
 
 这个优化并不依赖 HSTU，也适用于其他使用 causal self-attention 做 target-aware scoring 的模型。
 
