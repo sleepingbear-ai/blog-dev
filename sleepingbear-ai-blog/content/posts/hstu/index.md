@@ -18,63 +18,96 @@ summary = """
 
 ## TL;DR
 
-传统工业推荐中的 **Deep Learning Recommendation Model（DLRM）** 依赖大量人工构造的 categorical, numerical features 和复杂的 feature interaction module。但scale up 模型和计算规模时，效果常常饱和。
+传统工业推荐中的 **Deep Learning Recommendation Model（DLRM）** 依赖大量人工构造的 categorical, numerical features 和复杂的 feature interaction module。但scale up 模型时效果不一定有突破。
 
-这篇论文提出 **Generative Recommender（GR）**：把 item、用户 action 和其他 categorical feature 按时间合并成一条序列，再把 Retrieval 与 Ranking 都重构成序列预测问题n。这里的“生成式”不是生成文字或视频，而是**对用户行为序列建模，并预测序列中下一个 item 或 action**。
+这篇论文提出 **Generative Recommender（GR）**：把 item、用户 action 和其他 categorical feature 按时间合并成一条序列，再把 Retrieval 与 Ranking 都重构成序列预测问题。这里的“生成式”不是生成文字或视频，而是**对用户行为序列建模，并预测序列中下一个 item 或 action**。
 
-整套系统有四个关键部分：
+整套系统的关键：
 
-1. **统一 Feature Space**：把异构 categorical feature sequentialize；让模型从原始历史中学习原本由 counter、ratio 表达的统计信息。
-2. **Generative Training**：按用户或 session 训练，一次 encoder forward 同时监督多个时间点，避免为每次 impression 重复计算相同历史，理论上减少一个 `O(N)` 因子的计算。
-3. **HSTU Encoder**：用不做 softmax 的 pointwise attention 保留兴趣强度，以 gating 代替复杂 feature interaction，并针对 jagged、超长推荐序列优化内存和 kernel。
-4. **M-FALCON Serving**：把大量候选 item 分成 micro-batch，复用用户历史的计算和 KV cache，让更复杂的 target-aware 模型能高效实现。
+1. **统一 Feature Space**：把异构 categorical feature sequentialize；让模型从原始用户序列中学习原本由 counter、ratio 表达的统计特征。
+2. **HSTU Encoder**：设计高效的Attention Block，并针对 jagged、超长推荐序列优化内存和 kernel。
+3. **M-FALCON Serving**：把大量候选 item 分成 micro-batch，复用用户历史的计算和 KV cache，让复杂的 target-aware 模型能高效实现。
 
-结果很亮眼：最大模型达到 **1.5T 参数**；生产系统 A/B Test 的两个主要指标提升 **12.4% / 4.4%**；用户序列长度 8,192 时，HSTU 训练速度比基于 FlashAttention-2 的 Transformer 快 **5.3x-15.2x**。更重要的是，GR 的效果随训练 compute 在三个数量级上近似 power law 增长，而 DLRM 很快进入平台期。
+结果很亮眼：最大模型达到 **1.5T 参数**；生产系统 A/B Test 的两个主要指标提升 **12.4% / 4.4%**；用户序列长度 8,192 时，HSTU 训练速度比基于 FlashAttention-2 的 Transformer 快 **5.3x-15.2x**。更重要的是，GR 的效果随训练 compute 在三个数量级上近似 power law 增长。
 
-## 先澄清：“Generative”到底指什么？
+## 把 Retrieval 和 Ranking 重构为 Seq2Seq 预测问题
 
-这篇论文的 Generative Recommender 容易被误解成“用 LLM 生成推荐理由”或“直接生成内容”。两者都不是。
+这篇论文把推荐写成 **sequence-to-sequence（Seq2Seq）预测问题**，但 Retrieval 和 Ranking 使用不同的 input/output sequence。
 
-先看与两项核心任务直接相关的两类 token：
-
-* **Content / Item**：系统展示的图片、视频或商品。
-* **Action**：用户对 item 的反应，例如 click、skip、like、完成观看或 share。
-
-两者按时间交错排列：
+用一个最简单的例子说明。假设用户依次看了做饭、旅行和篮球三个视频，对应的 action 分别是点赞、看完和跳过。完整序列是：
 
 ```text
-item₀ → action₀ → item₁ → action₁ → ...
+做饭视频 → 点赞 → 旅行视频 → 看完 → 篮球视频 → 跳过
 ```
 
-模型在这条序列上选择不同的 prediction target，就得到两类核心任务：
+对于 **Ranking**，输入是 item 与 action 交错的序列；模型在每个 item 的位置预测用户对它采取的 action：
 
-* **Retrieval**：根据此前历史预测下一个发生正向互动的 item。
-* **Ranking**：把候选 item 接到历史后面，预测用户将对它采取什么 action。
+```text
+Ranking input:   做饭视频 → 点赞 → 旅行视频 → 看完 → 篮球视频 → 跳过
+Ranking output:  点赞     →  ∅   → 看完     →  ∅   → 跳过     →  ∅
+```
 
-真实输入还会把语言、城市、关注的 creator 等较低频 categorical feature 按时间插入同一条序列。这里的“生成式”更准确地说，是在统一序列上定义不同的 sequential transduction 目标：Retrieval 预测 item，Ranking 预测 action；它并不要求同一个训练目标生成序列里的每一种 token。
+例如，对候选“篮球视频”，模型预测用户会“跳过”。
 
-Ranking 之所以把 item 和 action 交错排列，是为了让候选 item 尽早与完整历史发生 target-aware interaction。模型不是先生成一个通用 user embedding，再在最后用一次 dot product 打分；候选 item 本身会参与对历史的 attention。
+Ranking 学习的是：
 
-这个定义也说明它与 [TIGER](../tiger-generative-retrieval/)、[PLUM](../plum/) 和 [OneRec](../onerec/) 的差别：这些后续工作通常把 item 转换成多层 **Semantic ID** 再逐 token 生成；HSTU 论文主要使用大规模 atomic ID，把重点放在**统一序列建模、Scaling Law 和工业系统效率**上。
+```text
+p(action | 用户历史, candidate item)
+```
 
-## 从 DLRM 到一条统一的行为序列
+对于 **Retrieval**，论文把每个 `(item, action)` 组合成一个输入 token。输出是下一个 item，但只有当用户对这个 item 的 action 是正向的，它才会成为训练 target；否则输出为无定义 `∅`：
 
-工业 DLRM 的输入远比“用户看过哪些 item”复杂：
+```text
+Retrieval input:   (做饭视频, 点赞) → (旅行视频, 看完) → (篮球视频, 跳过)
+Retrieval output:   旅行视频         →  ∅               →  ∅
+```
 
-* 高频 categorical feature：观看、点赞、关注等行为；
+这里“旅行视频”的 action 是“看完”，属于正向互动，所以它是第一个输入 token 对应的 next-item target。“篮球视频”被用户跳过，不是正向互动，因此不会成为 Retrieval target，而是被 mask 为 `∅`；最后一个位置没有 next item，输出同样为 `∅`。Retrieval 学习的是：
+
+```text
+p(下一个正向互动的 item | 用户历史)
+```
+
+两项任务都是 sequential transduction，但输出序列不同：Ranking 预测与每个候选 item 对应的 action，Retrieval 预测下一个获得正向反馈的 item。模型只在输出不为 `∅` 的位置计算训练 loss。
+
+## 特征：统一的时间序列
+
+工业 DLRM 的输入特征远比“用户看过哪些 item”复杂：
+
+* 高频 categorical feature：观看、点赞、跳过、分享、完播等行为；
 * 低频 categorical feature：语言、城市、关注的 creator、加入的 community；
 * numerical feature：CTR、带时间衰减的计数和各种 ratio；
 * 为不同业务与目标手工设计的 feature cross。
 
-GR 首先把用户互动合成主时间线。对于人口属性、关注 creator 这类变化较慢的 feature，只保留连续区间里的首次变化，再按时间合并到主序列中。
+GR 把这些特征统一成一条按时间排列的序列：
+
+* 首先把用户行为依照时间顺序合并成一个序列。
+* 对于用户属性、关注 creator 这类变化较慢的 feature，只保留每个连续不变区间的第一条记录，再按时间合并到主序列中。
+* 对于 CTR、counter 等频繁变化的 numerical feature，**不再使用它们**。这些统计特征本来就是从用户的历史行为和 categorical feature 统计而来；只要序列足够长，并配合表达能力足够强的 target-aware sequential model，模型应该能从原始历史中重新学出来。
+
+举个简单的例子。假设用户在北京看完了一个旅行视频，之后关注了 creator“小李”，又跳过了一个做饭视频。DLRM 通常会把这些信息拆成不同的 feature：
+
+```text
+历史 item:       [旅行视频, 做饭视频]
+历史 action:     [看完, 跳过]
+城市:            北京
+关注的 creator:  小李
+最近 2 次完播率:  50%
+```
+
+GR 不再把它们作为彼此分离的 feature fields，而是保留原始 categorical event，并按发生时间合并成一条序列。沿用前文的交错表示，可以简化为：
+
+```text
+[城市: 北京] → [旅行视频] → [看完] → [关注 creator: 小李] → [做饭视频] → [跳过]
+```
+
+像“最近 2 次完播率 50%”这样的 numerical feature 不进入序列，因为它本来就可以从历史 event 统计出来。
 
 ![论文 Figure 2：DLRM 为每个 impression 重复抽取大量异构特征；GR 把 categorical feature 合并成统一时间序列，并按用户或 session 生成训练样本。](fig2-dlrm-vs-gr-features-training.svg)
 
 *从 DLRM 到 GR：不仅模型结构变了，Feature Space 和训练样本的组织方式也一起改变。（[论文](https://arxiv.org/abs/2402.17152) Figure 2。）*
 
-对于 CTR、counter 等频繁变化的 numerical feature，论文做了更激进的选择：**不再直接输入它们**。这些统计量本来就是从用户的历史行为和 categorical feature 聚合而来；只要序列足够长、模型表达能力足够强，模型应该能从原始历史中重新学出来。
-
-这是一笔很明确的交换：减少 feature engineering，把负担转移给更长的序列和更多 compute。论文的工业实验也支持这个方向——如果把 GR 使用的精简 feature 同样交给 DLRM，DLRM 明显退化；GR 则能从统一序列中恢复许多原来由手工 feature 提供的信息。
+这个方法减少 feature engineering，但依靠更长的用户序列和更多 compute。
 
 ## Generative Training：一次计算，多处监督
 
