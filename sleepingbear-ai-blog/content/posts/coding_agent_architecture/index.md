@@ -1,29 +1,31 @@
 +++
 date = '2026-10-21T12:00:00-07:00'
 draft = false
-title = '拆解 Coding Agent：LLM 如何一步步完成编程任务'
+title = 'Coding Agent 结构详解：Agent = LLM + Agent Harness'
 tags = ['ai', 'aiagents', 'codingagent', 'llm', 'aicoding', '人工智能', 'AI编程']
 summary = '从约 1,000 行 Python 的 Mini Coding Agent 出发，理解 Agent Loop、工具调用、上下文、记忆和子 Agent 如何协作，让 LLM 能够完成编程任务。'
 +++
 
-Coding Agent 正在改变我们开发软件的方式。你提出一个需求，它就能查看代码、修改文件、运行测试，再根据结果继续调整。这些能力是怎样实现的？
+Coding Agent 正在改变我们开发软件的方式。你提出一个需求，它就能进行系统设计、查看和生成代码、修改文件、运行测试，再根据结果继续调整。这些神奇能力是怎样实现的？
 
-一个核心认识是：**Agent = LLM + Agent Harness。** LLM 理解任务、决定下一步；Agent Harness 是围绕模型构建的软件，负责准备输入、执行工具、保存状态，并控制执行边界。
+核心是：**Agent = LLM + Agent Harness。** LLM 理解任务、决定下一步行动；Agent Harness 是围绕 LLM 构建的软件，负责准备输入、执行工具、保存状态，并控制执行边界。
 
-Sebastian Raschka 的 [Mini Coding Agent](https://github.com/rasbt/mini-coding-agent/blob/717cae4ff10d01773bd12951f62a575825053414/mini_coding_agent.py) 用约 1,000 行 Python 展示了这套架构，很适合用来学习。本文基于我的理解，详解这一 Coding Agent 的架构与设计，并分享我的思考。
+Sebastian Raschka 的 [Mini Coding Agent](https://github.com/rasbt/mini-coding-agent/blob/717cae4ff10d01773bd12951f62a575825053414/mini_coding_agent.py) 用约 1,000 行 Python 展示了一个完整的 Coding Agent 的代码实现！很适合用来清晰理解 Agent 的原理和架构。本文基于我的理解，详解其架构与设计，并分享我的思考。
 
-下面讨论的是这个小型实现。不同 Coding Agent 的具体做法会有差异。
+## 从一个编程任务看整体架构
 
-## 1. 从一个编程任务看整体架构
+以 Sebastian [原文](https://magazine.sebastianraschka.com/p/components-of-a-coding-agent)中的任务为例，用户输入：“Implement binary search in Python”（用 Python 实现二分查找）。围绕这个任务，Agent 可以这样工作：
 
-假设用户提出：“修复解析器中那个失败的测试。”Agent 可能这样完成任务：
+1. 结合工作区信息理解需求，必要时阅读项目说明和已有代码。
+2. 生成二分查找代码，请求调用工具 `write_file` 将其保存到 `binary_search.py`。Harness 检查请求，并按权限策略询问用户是否批准写入。
+3. 文件写入后，请求调用工具 `run_shell` 运行示例或测试，获取实际执行结果。
+4. 根据结果判断是否需要修改，再继续验证；完成后向用户说明实现和验证情况。
 
-1. 搜索失败测试，阅读测试和相关代码。
-2. 分析原因，修改解析器。
-3. 运行测试，查看结果。
-4. 如果仍然失败，继续定位和修改；完成后向用户说明结果。
+![Sebastian 的二分查找示例：用户要求用 Python 实现二分查找，Agent 请求创建 binary_search.py，Harness 在执行 write_file 前询问用户批准。](binary-search-approval.png)
 
-**模型根据当前信息选择行动，Harness 把行动变成实际操作，再把结果交回模型。** 这就是 Agent 能够持续推进任务的基础。
+*图源：Sebastian Raschka，[Components of A Coding Agent](https://magazine.sebastianraschka.com/p/components-of-a-coding-agent)，Figure 9。*
+
+**模型根据当前信息选择行动，Harness 把行动变成实际操作，再把结果交回模型。** 下图展示 Coding Agent 的架构和工作流程。
 
 ![Coding Agent 架构：Harness 整理上下文后调用 LLM，执行模型请求的工具，再将结果送入下一轮；模型给出最终回答时结束。](agent-architecture.svg)
 
@@ -37,37 +39,39 @@ Sebastian Raschka 的 [Mini Coding Agent](https://github.com/rasbt/mini-coding-a
 
 这里一个重要的分工是：**LLM 生成“调用工具”的请求，真正读写文件、执行命令的是 Harness。**
 
-## 2. Agent Loop：行动之后，再看结果
+## Agentic Loop
 
-Mini Coding Agent 的核心循环位于 [`MiniAgent.ask()`](https://github.com/rasbt/mini-coding-agent/blob/717cae4ff10d01773bd12951f62a575825053414/mini_coding_agent.py#L445-L494)。它采用 ReAct 风格的流程：根据已有信息决定行动，获得环境反馈，再决定下一步。
+Mini Coding Agent 的核心循环位于 [`MiniAgent.ask()`](https://github.com/rasbt/mini-coding-agent/blob/717cae4ff10d01773bd12951f62a575825053414/mini_coding_agent.py#L445-L494)。它采用 ReAct 风格的流程：根据已有信息决定行动，获得环境反馈，再决定下一步行动。
 
 把控制流程简化后，可以写成下面的伪代码：
 
 ```text
-只要工具调用次数和模型调用次数都未达到上限：
-    整理上下文，调用 LLM
-    解析 LLM 的输出
+while within_tool_step_and_model_call_limits:
+    response = call_llm(assemble_context())
+    kind, payload = parse(response)
 
-    如果是工具请求：
-        检查并执行工具
-        记录执行结果，更新工作记忆
-    如果输出为空或格式错误：
-        记录格式提示，让模型重试
-    如果是最终回答：
-        记录回答，返回给用户，结束循环
+    if kind == "tool":
+        result = validate_and_run_tool(payload)
+        record_tool_result(payload, result)
+        update_working_memory(payload, result)
+    elif kind == "retry":
+        record_formatting_feedback(payload)
+    else:
+        record_final_answer(payload)
+        return payload
+
+return report_limit_reached()
 ```
 
-这三种分支各有作用：
+Harness 通过 `parse()` 解析 LLM 的输出，将后续处理分为三种情况：
 
-- **工具请求：** 例如读取文件或运行测试。执行结果进入下一轮上下文，模型据此继续行动。
-- **格式重试：** 例如模型生成了无法解析的 JSON。Harness 返回格式说明，让模型有机会纠正。
-- **最终回答：** 模型认为可以回答了，循环结束。
+- **工具请求：** 例如读取文件或运行 Shell 命令。Harness 检查并执行工具，将结果放入下一轮上下文，LLM 据此决定下一步行动。
+- **格式重试：** 例如 LLM 生成了无法解析的 JSON。Harness 返回格式说明和正确格式例子，将这些反馈放入下一轮上下文，让 LLM 重试。
+- **最终回答：** LLM 输出最终回答（Final Answer），Harness 记录并返回给用户，循环结束。
 
-注意，模型返回最终回答，只代表本轮执行结束。代码是否修好，仍要通过测试等实际结果来判断。
+实现中有两种次数限制：`max_steps` 限制工具调用尝试次数，`max_attempts` 限制 LLM 调用总次数。达到任一上限时，Harness 都会停止循环并返回停止原因。
 
-实现中有两种次数限制：`max_steps` 限制工具调用尝试次数，`max_attempts` 限制模型调用总次数。两者分开很有用：即使模型一直输出错误格式、没有成功发起工具调用，也不会无限重试。
-
-## 3. 工具：把模型的决定变成实际操作
+## 工具（Tool Use）：把 LLM 的决定变成实际操作
 
 工具让 Agent 能够接触代码仓库和运行环境。Mini Coding Agent 提供了几类工具：
 
@@ -78,21 +82,21 @@ Mini Coding Agent 的核心循环位于 [`MiniAgent.ask()`](https://github.com/r
 | `run_shell` | 执行命令，例如运行测试 |
 | `delegate` | 将子任务交给一个受限的子 Agent |
 
-模型如何使用这些工具？很多 LLM API 支持原生 Tool Calling：应用提供工具定义，模型通过专门的响应字段返回结构化调用。
+很多 LLM API 原生支持 Tool Calling：调用时提供工具定义，LLM 以结构化形式返回工具名称和参数。
 
-这个实现采用了更直观的文本协议：在 Prompt 中说明工具名称、参数和输出格式，再让模型生成这样的文本：
+Mini Coding Agent 未使用这类 API，而是采用文本协议：在 Prompt 中说明工具名称、参数和输出格式，让 LLM 需要调用工具时生成这样的文本：
 
 ```xml
 <tool>{"name":"read_file","args":{"path":"README.md","start":1,"end":80}}</tool>
 ```
 
-`name` 指定工具，`args` 提供参数。这段文本本身不会读取文件。Harness 解析它之后，才调用对应的 Python 函数。
+`name` 指定工具，`args` 提供参数。**LLM 生成调用请求，Harness 执行实际操作。** 在这个例子中，Harness 解析并检查请求后，调用 Python 方法 `tool_read_file()`，读取 `README.md` 的第 1–80 行。
 
-[`run_tool()`](https://github.com/rasbt/mini-coding-agent/blob/717cae4ff10d01773bd12951f62a575825053414/mini_coding_agent.py#L496-L515) 在执行前后还会做几件事：检查工具和参数是否有效，拦截反复出现的相同调用，按策略检查是否需要批准，执行后截短过长的输出。
+执行工具前，[`run_tool()`](https://github.com/rasbt/mini-coding-agent/blob/717cae4ff10d01773bd12951f62a575825053414/mini_coding_agent.py#L496-L515) 会检查工具名称和参数、拦截反复出现的相同调用，并按权限策略检查是否允许执行。执行后，再截短过长的输出。
 
-执行成功的结果、参数错误或命令失败信息，都会成为后续模型调用的输入。**错误也能提供有用的反馈，帮助模型调整下一步。**
+工具结果、参数错误或命令失败信息，都会进入下一轮上下文。**错误也能提供有用的反馈，帮助 LLM 调整下一步行动。**
 
-## 4. 上下文：每一轮，LLM 到底看到了什么？
+## 上下文：每一轮，LLM 到底看到了什么？
 
 Agent 能连续工作，是因为 Harness 在每轮调用时，都会把相关信息整理进模型输入。这个实现的 [`prompt()`](https://github.com/rasbt/mini-coding-agent/blob/717cae4ff10d01773bd12951f62a575825053414/mini_coding_agent.py#L422-L429) 按固定顺序拼接四部分：
 
@@ -138,7 +142,7 @@ Working Memory 是一份简短的任务备忘，包含三个字段：
 
 最后，Harness 再附上**当前用户请求**，明确这一轮要解决的问题。
 
-## 5. 状态保存与上下文，是两件相关但不同的事
+## 状态保存与上下文，是两件相关但不同的事
 
 上面讲的是“这次送给模型看什么”。另一个问题是：“程序中断后，之前的工作还能保留吗？”
 
@@ -153,7 +157,7 @@ Working Memory 是一份简短的任务备忘，包含三个字段：
 
 这种区分对长任务很重要：持久化解决状态保存，上下文管理决定有限的输入空间如何分配。
 
-## 6. 子 Agent：把调查工作委派出去
+## 子 Agent：把调查工作委派出去
 
 除了直接操作工具，模型还可以调用 `delegate`，例如：“找出导致解析器测试失败的函数。”
 
@@ -169,7 +173,7 @@ Working Memory 是一份简短的任务备忘，包含三个字段：
 
 这里的设计很自然：**把委派也做成工具，让模型根据任务决定何时需要帮助。** 这个实现展示的是受限的子任务委派；调用 `delegate` 本身并不意味着多个 Agent 已经在并行工作。
 
-## 7. 我的思考
+## 我的思考
 
 ### 小型实现，让架构更容易看清
 
