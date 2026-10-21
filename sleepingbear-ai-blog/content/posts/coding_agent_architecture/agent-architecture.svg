@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="550" viewBox="0 0 760 550" role="img" aria-labelledby="title desc">
+  <title id="title">Coding Agent 的执行循环</title>
+  <desc id="desc">Harness 整理上下文后调用 LLM；模型请求工具时，Harness 检查并执行，将结果送回上下文；模型给出最终回答时结束。工作区、权限、预算和会话状态支持整个流程。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#52647b"/></marker>
+  </defs>
+  <rect width="760" height="550" rx="20" fill="#f5f7fb"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif" text-anchor="middle">
+    <text x="380" y="44" font-size="26" font-weight="700" fill="#172b45">Coding Agent：决定 → 行动 → 反馈</text>
+    <rect x="28" y="70" width="704" height="366" rx="18" fill="#fff" stroke="#cbd5e1" stroke-width="2"/>
+    <text x="380" y="105" font-size="20" font-weight="600" fill="#52647b">Agent Harness 组织执行流程</text>
+    <rect x="58" y="145" width="268" height="90" rx="12" fill="#e9f1ff" stroke="#9ab7e7"/>
+    <text x="192" y="180" font-size="23" font-weight="600" fill="#1d447a">整理上下文</text>
+    <text x="192" y="213" font-size="19" fill="#355579">规则、记忆、历史、请求</text>
+    <rect x="434" y="145" width="268" height="90" rx="12" fill="#e9f1ff" stroke="#9ab7e7"/>
+    <text x="568" y="180" font-size="23" font-weight="600" fill="#1d447a">LLM 决定下一步</text>
+    <text x="568" y="213" font-size="19" fill="#355579">请求工具，或给出回答</text>
+    <rect x="434" y="315" width="268" height="90" rx="12" fill="#e6f4ee" stroke="#92c4ad"/>
+    <text x="568" y="350" font-size="23" font-weight="600" fill="#25644c">检查并执行工具</text>
+    <text x="568" y="383" font-size="19" fill="#386b56">搜索、读写文件、运行测试</text>
+    <rect x="58" y="315" width="268" height="90" rx="12" fill="#e6f4ee" stroke="#92c4ad"/>
+    <text x="192" y="350" font-size="23" font-weight="600" fill="#25644c">记录执行结果</text>
+    <text x="192" y="383" font-size="19" fill="#386b56">更新记忆，进入下一轮</text>
+    <g fill="none" stroke="#52647b" stroke-width="2.5" marker-end="url(#arrow)">
+      <path d="M328 190H429"/>
+      <path d="M568 237V309"/>
+      <path d="M432 360H332"/>
+      <path d="M192 312V241"/>
+    </g>
+    <text x="626" y="279" font-size="19" fill="#52647b">工具请求</text>
+    <rect x="62" y="459" width="636" height="62" rx="12" fill="#e9edf4"/>
+    <text x="380" y="497" font-size="21" fill="#374b65">运行支持：工作区 · 权限 · 预算 · 会话状态</text>
+  </g>
+</svg>
