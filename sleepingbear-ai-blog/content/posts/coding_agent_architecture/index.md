@@ -3,20 +3,20 @@ date = '2026-10-21T12:00:00-07:00'
 draft = false
 title = 'Coding Agent 结构详解：Agent = LLM + Agent Harness'
 tags = ['ai', 'aiagents', 'codingagent', 'llm', 'aicoding', '人工智能', 'AI编程']
-summary = '从约 1,000 行 Python 的 Mini Coding Agent 出发，理解 Agent Loop、工具调用、Context Window、记忆和 SubAgent 如何协作，让 LLM 能够完成编程任务。'
+summary = '从约 1,000 行 Python 的 Mini Coding Agent 出发，理解 Agentic Loop、Tool Use、Context Window、Working Memory 和 SubAgent 如何协作，让 LLM 能够完成编程任务。'
 +++
 
 Coding Agent 正在改变我们开发软件的方式。你提出一个需求，它就能进行系统设计、查看和生成代码、修改文件、运行测试，再根据结果继续调整。这些神奇能力是怎样实现的？
 
 核心是：**Agent = LLM + Agent Harness。** LLM 理解任务、决定下一步行动；Agent Harness 是围绕 LLM 构建的软件，负责准备输入、执行工具、保存状态，并控制执行边界。
 
-Sebastian Raschka 的 [Mini Coding Agent](https://github.com/rasbt/mini-coding-agent/blob/717cae4ff10d01773bd12951f62a575825053414/mini_coding_agent.py) 用约 1,000 行 Python 展示了一个完整的 Coding Agent 的代码实现, 很适合用来清晰理解 Agent 的原理和架构。本文基于我的理解，详解其设计，并分享我的思考。
+Sebastian Raschka 的 [Mini Coding Agent](https://github.com/rasbt/mini-coding-agent/blob/717cae4ff10d01773bd12951f62a575825053414/mini_coding_agent.py) 用约 1,000 行 Python 展示了一个完整的 Coding Agent 的代码实现，很适合用来清晰理解 Agent 的原理和架构。本文基于我的理解，详解其设计，并分享我的思考。
 
 ## 从一个编程任务看整体架构
 
-以 Sebastian [原文](https://magazine.sebastianraschka.com/p/components-of-a-coding-agent)中的任务为例，用户输入：“Implement binary search in Python”, 围绕这个任务，Agent 可以这样工作：
+以 Sebastian [原文](https://magazine.sebastianraschka.com/p/components-of-a-coding-agent)中的任务为例，用户输入：“Implement binary search in Python”。围绕这个任务，Agent 可以这样工作：
 
-1. 结合Workingspace信息理解需求，必要时阅读项目说明和已有代码。
+1. 结合 Workspace 信息理解需求，必要时阅读项目说明和已有代码。
 2. 生成二分查找代码，请求调用工具 `write_file` 将其保存到 `binary_search.py`。Harness 检查请求，并按权限策略询问用户是否批准写入。
 3. 文件写入后，请求调用工具 `run_shell` 运行示例或测试，获取实际执行结果。
 4. 根据结果判断是否需要修改，再继续验证；完成后向用户说明实现和验证情况。
@@ -34,7 +34,7 @@ Sebastian Raschka 的 [Mini Coding Agent](https://github.com/rasbt/mini-coding-a
 | 层次 | 负责什么 |
 | --- | --- |
 | **LLM** | 理解需求，结合代码和工具结果推理，选择下一步行动或给出最终回答 |
-| **Agent Loop** | 反复调用模型、执行工具、返回结果，直到结束或达到预算上限 |
+| **Agentic Loop** | 反复调用模型、执行工具、返回结果，直到结束或达到预算上限 |
 | **Runtime Support** | Workspace Context, Tools, Permission Checks, Context Window Assembly, State Persistence |
 
 这里一个重要的分工是：**LLM 生成“调用工具”的请求，真正读写文件、执行命令的是 Harness。**
@@ -75,7 +75,7 @@ Harness 通过 `parse()` 解析 LLM 的输出，将后续处理分为三种情�
 
 很多 LLM API 原生支持 Tool Calling：应用提供工具定义，LLM 在专门的响应字段中返回结构化的工具调用。
 
-Mini Coding Agent 没有使用这样的API， 而是采用自己的文本协议，将工具说明和输出格式直接放入 Prompt。下面节选自 [`build_prefix()`](https://github.com/rasbt/mini-coding-agent/blob/717cae4ff10d01773bd12951f62a575825053414/mini_coding_agent.py#L333-L374)，展示它如何告诉 LLM 生成工具请求：
+Mini Coding Agent 没有使用这样的 API，而是采用自己的文本协议，将工具说明和输出格式直接放入 Prompt。下面节选自 [`build_prefix()`](https://github.com/rasbt/mini-coding-agent/blob/717cae4ff10d01773bd12951f62a575825053414/mini_coding_agent.py#L333-L374)，展示它如何告诉 LLM 生成工具请求：
 
 ```text
 Rules:
@@ -166,7 +166,9 @@ Stable Prefix 在 Agent 启动时构建，后续各轮调用保持不变。如�
 会话开始时，Working Memory 的结构如下：
 
 ```json
-"memory": {"task": "", "files": [], "notes": []}
+{
+    "memory": {"task": "", "files": [], "notes": []}
+}
 ```
 
 三个字段分别保留不同的信息：
@@ -208,7 +210,7 @@ Mini Coding Agent 允许 LLM 调用 `delegate` 工具来委派子任务，对应
 Harness 创建一个 SubAgent，运行它自己的 Agentic Loop。这一设计同时提供完成任务所需的信息，并设置明确的执行边界：
 
 - **Enough Context：** SubAgent 获得 Workspace 信息、委派的子任务，以及父 Agent 交互历史的一小段节选。
-- **受限的执行：** SubAgent 以只读方式运行，禁止文件修改。工具步数和SubAgent 的递归创建深度也有上限，避免无限委派。
+- **受限的执行：** SubAgent 以只读方式运行，禁止文件修改。工具步数和 SubAgent 的递归创建深度也有上限，避免无限委派。
 
 ![SubAgent 委派流程：父 Agent 调用 delegate，Harness 创建拥有独立 Agentic Loop 的 SubAgent，传入子任务、Workspace 信息和父 Agent 历史节选；SubAgent 在只读、步数和深度限制内工作，再将最终回答作为工具结果返回。](bounded-subagents.png)
 
@@ -224,7 +226,7 @@ SubAgent 的最终回答作为 `delegate` 的工具执行结果返回给父 Agen
 
 ### Context Engineering，决定模型如何使用已有信息
 
-即使LLM很强，Harness 仍然需要回答：哪些信息要放进 Context Window？哪些可以省略？历史要保留多少细节？工具输出应该多长？ 这些选择影响模型输出质量，也影响token成本和延迟。
+即使 LLM 很强，Harness 仍然需要回答：哪些信息要放进 Context Window？哪些可以省略？历史要保留多少细节？工具输出应该多长？这些选择影响模型输出质量，也影响 token 成本和延迟。
 
 我预期，随着模型能力提高、成本下降，更多 Context 管理工作可以交给 LLM，例如压缩历史、维护记忆和选择相关信息。
 
@@ -232,9 +234,9 @@ SubAgent 的最终回答作为 `delegate` 的工具执行结果返回给父 Agen
 
 我特别喜欢这个 Coding Agent 把生成 SubAgent 作为 Tool Use 的设计：让 LLM 自行决定何时创建 SubAgent，并围绕子任务自主组织工作。
 
-我认为这里存在 Scaling Law 的潜力：递归生成SubAgent 蜂群, 增加 SubAgent 数量和总计算量，有可能帮助 AI Agent 解决更有挑战性、更复杂的问题！
+我认为这里存在 Scaling Law 的潜力：递归生成 SubAgent 蜂群，增加 SubAgent 数量和总计算量，有可能帮助 AI Agent 解决更有挑战性、更复杂的问题！
 
-这是一个简洁而强大的想法，但也需要安全控制。限制SubAgent 的递归创建深度、Agent 数量、计算量和权限，是平衡 AI Agent 能力与安全的重要条件。
+这是一个简洁而强大的想法，但也需要安全控制。限制 SubAgent 的递归创建深度、Agent 数量、计算量和权限，是平衡 AI Agent 能力与安全的重要条件。
 
 ## 延伸阅读与致谢
 
