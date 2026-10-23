@@ -17,15 +17,15 @@ Sebastian Raschka 的 [Mini Coding Agent](https://github.com/rasbt/mini-coding-a
 以 Sebastian [原文](https://magazine.sebastianraschka.com/p/components-of-a-coding-agent)中的任务为例，用户输入：“Implement binary search in Python”。围绕这个任务，Agent 可以这样工作：
 
 1. 结合 Workspace 信息理解需求，必要时阅读项目说明和已有代码。
-2. 生成二分查找代码，请求调用工具 `write_file` 将其保存到 `binary_search.py`。Harness 检查请求，并按权限策略询问用户是否批准写入。
-3. 文件写入后，请求调用工具 `run_shell` 运行示例或测试，获取实际执行结果。
-4. 根据结果判断是否需要修改，再继续验证；完成后向用户说明实现和验证情况。
+2. LLM 生成代码，请求调用工具 `write_file` 将其保存到 `binary_search.py`，Harness 检查这一请求，并按权限策略询问用户是否批准写入。
+3. 文件写入后，请求调用工具 `run_shell` 运行测试，获取实际执行结果。
+4. 根据结果判断是否需要修改代码，再继续验证，直到完成任务或达到执行上限。
 
 ![Sebastian 的二分查找示例：用户要求用 Python 实现二分查找，Agent 请求创建 binary_search.py，Harness 在执行 write_file 前询问用户批准。](binary-search-approval.png)
 
 *图源：Sebastian Raschka，[Components of A Coding Agent](https://magazine.sebastianraschka.com/p/components-of-a-coding-agent)，Figure 9。*
 
-**模型根据当前信息选择行动，Harness 把行动变成实际操作，再把结果交回模型。** 下图展示 Coding Agent 的架构和工作流程。
+**模型根据当前信息选择行动，Harness 把行动变成实际操作，再把结果交回模型。** 下图展示 Coding Agent 的架构和工作流程：
 
 ![Coding Agent 架构：Harness 整理 Context Window 后调用 LLM，执行模型请求的工具，再将结果送入下一轮；模型给出最终回答时结束。](agent-architecture.png)
 
@@ -33,11 +33,11 @@ Sebastian Raschka 的 [Mini Coding Agent](https://github.com/rasbt/mini-coding-a
 
 | 层次 | 负责什么 |
 | --- | --- |
-| **LLM** | 理解需求，结合代码和工具结果推理，选择下一步行动或给出最终回答 |
+| **LLM** | 理解需求，结合代码和工具结果进行推理，决定下一步行动或给出最终回答 |
 | **Agentic Loop** | 反复调用模型、执行工具、返回结果，直到结束或达到预算上限 |
 | **Runtime Support** | Workspace Context, Tools, Permission Checks, Context Window Assembly, State Persistence |
 
-这里一个重要的分工是：**LLM 生成“调用工具”的请求，真正读写文件、执行命令的是 Harness。**
+这里重要的分工是：**LLM 生成“调用工具”的请求，真正读写文件、执行命令的是 Harness。**
 
 ## ReAct Agentic Loop
 
@@ -65,17 +65,17 @@ Harness 通过 `parse()` 解析 LLM 的输出，将后续处理分为三种情�
 
 - **工具请求：** 例如读取文件或运行 Shell 命令。Harness 检查并执行工具，将结果放入下一轮 Context Window，LLM 据此决定下一步行动。
 - **格式重试：** LLM 生成了无法解析的 JSON。Harness 返回格式说明和正确格式例子，将这些反馈放入下一轮 Context Window，让 LLM 重试。
-- **最终回答：** LLM 输出最终回答（Final Answer），Harness 记录并返回给用户，循环结束。
+- **最终回答：** LLM 输出最终回答 (Final Answer)，Harness 记录并返回给用户，循环结束。
 
-实现中有两种次数限制：`max_steps` 限制工具调用尝试次数，`max_attempts` 限制 LLM 调用总次数。达到任一上限时，Harness 都会停止循环并返回停止原因。
+有两种次数限制：`max_steps` 限制工具调用尝试次数，`max_attempts` 限制 LLM 调用总次数。达到任一上限时，Harness 都会停止循环并返回停止原因。
 
 ## 工具 (Tool Use)：把 LLM 的决定变成实际操作
 
 工具让 LLM 能够请求 Harness 搜索、读写代码及其他文件、运行 Shell 命令，以及创建 SubAgent。**LLM 生成调用请求，Harness 执行实际操作并返回结果。**
 
-很多 LLM API 原生支持 Tool Calling：应用提供工具定义，LLM 在专门的响应字段中返回结构化的工具调用。
+很多 LLM API 原生支持 Tool Calling：调用 LLM 时提供工具定义，LLM 在专门的响应字段中返回结构化的工具调用请求。
 
-Mini Coding Agent 没有使用这样的 API，而是采用自己的文本协议，将工具说明和输出格式直接放入 Prompt。下面节选自 [`build_prefix()`](https://github.com/rasbt/mini-coding-agent/blob/717cae4ff10d01773bd12951f62a575825053414/mini_coding_agent.py#L333-L374)，展示它如何告诉 LLM 生成工具请求：
+Mini Coding Agent 没有使用这样的 API，而是采用自己的文本协议，将工具说明和输出格式直接放入 Prompt。下面节选自 [`build_prefix()`](https://github.com/rasbt/mini-coding-agent/blob/717cae4ff10d01773bd12951f62a575825053414/mini_coding_agent.py#L333-L374)，展示 Harness 如何引导 LLM 生成工具请求：
 
 ```text
 Rules:
@@ -106,7 +106,7 @@ Valid response examples:
 | `run_shell` | 执行命令，包括运行测试 |
 | `delegate` | 创建一个受限的 SubAgent |
 
-[`run_tool()`](https://github.com/rasbt/mini-coding-agent/blob/717cae4ff10d01773bd12951f62a575825053414/mini_coding_agent.py#L496-L515) 负责检查工具调用请求、检查重复调用、应用审批策略、执行工具，并截短过长的输出。执行结果或错误信息会通过 Compact Transcript 进入下一次 LLM 调用的 Context Window。
+[`run_tool()`](https://github.com/rasbt/mini-coding-agent/blob/717cae4ff10d01773bd12951f62a575825053414/mini_coding_agent.py#L496-L515) 负责检查工具调用请求、检查重复调用、按策略检查是否允许执行、执行工具，并截短过长的输出。执行结果或错误信息会通过 Compact Transcript 进入下一次 LLM 调用的 Context Window。
 
 ## Context Window：每一轮，LLM 到底看到了什么？
 
@@ -157,13 +157,13 @@ return "\n\n".join([
 - **Rules：** 指导 LLM 的行为，规定工具调用和最终回答的输出格式。
 - **Tool Descriptions：** 告诉 LLM 有哪些工具、各自的用途和参数。
 - **Examples：** 展示有效的工具调用和最终回答，让 LLM 有具体格式可以遵循。
-- **Workspace Context：** 由 [`WorkspaceContext.build()`](https://github.com/rasbt/mini-coding-agent/blob/717cae4ff10d01773bd12951f62a575825053414/mini_coding_agent.py#L75-L143) 生成，包括仓库根目录、分支、Git 状态、近期提交，以及在根目录或当前目录找到的 `AGENTS.md`、`README.md`、`pyproject.toml`、`package.json` 等文件的节选。
+- **Workspace Context：** 由 [`WorkspaceContext.build()`](https://github.com/rasbt/mini-coding-agent/blob/717cae4ff10d01773bd12951f62a575825053414/mini_coding_agent.py#L75-L143) 生成，包括 Repo 根目录、branch、Git 状态、近期提交，以及在根目录或当前目录找到的 `AGENTS.md`、`README.md`、`pyproject.toml`、`package.json` 等文件的节选。
 
 Stable Prefix 在 Agent 启动时构建，后续各轮调用保持不变。如果 LLM 服务支持 Prompt Prefix Caching，这种稳定结构有利于缓存复用。
 
 ### Working Memory：让关键信息保持可见
 
-会话开始时，Working Memory 的结构如下：
+Working Memory 的结构如下：
 
 ```json
 {
