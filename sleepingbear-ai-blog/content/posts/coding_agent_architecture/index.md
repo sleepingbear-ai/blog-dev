@@ -1,7 +1,7 @@
 +++
 date = '2026-10-21T12:00:00-07:00'
 draft = false
-title = 'Coding Agent 结构详解：Agent = LLM + Agent Harness'
+title = '理解 Coding Agent 架构：Agent = LLM + Agent Harness'
 tags = ['ai', 'aiagents', 'codingagent', 'llm', 'aicoding', '人工智能', 'AI编程']
 summary = '从约 1,000 行 Python 的 Mini Coding Agent 出发，理解 Agentic Loop、Tool Use、Context Window、Working Memory 和 SubAgent 如何协作，让 LLM 能够完成编程任务。'
 +++
